@@ -40,13 +40,17 @@
             <!-- Header -->
             <header class="header">
                 <div class="header-left">
+                    <button class="btn-menu-mobile" onclick="toggleMobileMenu()">
+                        <i class="lucide lucide-menu"></i>
+                    </button>
+                    <img src="assets/logo.png" alt="Logo" class="header-logo-mobile">
                     <i class="lucide lucide-map-pin header-icon"></i>
                     <h1 class="header-title">DASHBOARD TRAZADOS VIALES</h1>
                     <span class="header-subtitle">Prefectura de Pichincha</span>
                 </div>
                 <div class="header-right">
                     <button class="btn-reset" onclick="loadData()">
-                        <i class="lucide lucide-rotate-ccw"></i> Actualizar
+                        <i class="lucide lucide-rotate-ccw"></i> <span class="hide-mobile">Actualizar</span>
                     </button>
                 </div>
             </header>
@@ -276,6 +280,51 @@
                     </div>
                 </div>
             </section>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <a href="#" class="mobile-nav-item active" data-page="ranking" onclick="navigateTo('ranking')">
+            <i class="lucide lucide-bar-chart-3"></i>
+            <span>Ranking</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-page="productividad" onclick="navigateTo('productividad')">
+            <i class="lucide lucide-users"></i>
+            <span>Productividad</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-page="tipo" onclick="navigateTo('tipo')">
+            <i class="lucide lucide-layers"></i>
+            <span>Tramites</span>
+        </a>
+    </nav>
+
+    <!-- Mobile Filter Overlay -->
+    <div class="mobile-filter-overlay hidden" id="mobile-filter-overlay" onclick="toggleMobileMenu()"></div>
+    <div class="mobile-filter-panel hidden" id="mobile-filter-panel">
+        <div class="mobile-filter-header">
+            <h3>Filtros</h3>
+            <button onclick="toggleMobileMenu()"><i class="lucide lucide-x"></i></button>
+        </div>
+        <div class="mobile-filter-body">
+            <div class="mobile-filter-group">
+                <label>Usuario</label>
+                <select id="filtro-usuario-mobile" class="filter-select" onchange="document.getElementById('filtro-usuario').value=this.value; onFiltroUsuarioChange(this.value)">
+                    <option value="Todos">Todos los Usuarios</option>
+                </select>
+            </div>
+            <div class="mobile-filter-group">
+                <label>Tipo</label>
+                <select id="filtro-tipo-mobile" class="filter-select" onchange="document.getElementById('filtro-tipo').value=this.value; onFiltroTipoChange(this.value)">
+                    <option value="Todos">Todos los Tipos</option>
+                </select>
+            </div>
+            <div class="mobile-filter-group">
+                <label>Fase</label>
+                <select id="filtro-fase-mobile" class="filter-select" onchange="document.getElementById('filtro-fase').value=this.value; onFiltroFaseChange(this.value)">
+                    <option value="Todos">Todas las Fases</option>
+                </select>
+            </div>
         </div>
     </div>
 

@@ -159,33 +159,105 @@ function buildFilters() {
 
     // Populate Usuario filter
     const userSelect = document.getElementById('filtro-usuario');
+    const emailsEnUso = [...new Set(dashboardData.intake.map(i => i.Responsible).filter(Boolean))].sort();
     if (userSelect) {
-        // Get unique responsible emails from intake
-        const emailsEnUso = [...new Set(dashboardData.intake.map(i => i.Responsible).filter(Boolean))].sort();
         userSelect.innerHTML = '<option value="Todos">Todos los Usuarios</option>';
         emailsEnUso.forEach(email => {
             const name = getUserNameShort(email);
             userSelect.innerHTML += `<option value="${email}">${name}</option>`;
         });
     }
+
+    // Sync mobile filter dropdowns
+    syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso);
+}
+
+function syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso) {
+    // Mobile Tipo
+    const tipoMobile = document.getElementById('filtro-tipo-mobile');
+    if (tipoMobile) {
+        tipoMobile.innerHTML = '<option value="Todos">Todos los Tipos</option>';
+        tiposUnicos.forEach(t => {
+            tipoMobile.innerHTML += `<option value="${t}">${t} - ${TYPE_NAMES[t] || t}</option>`;
+        });
+        tipoMobile.value = filtroTipo;
+    }
+
+    // Mobile Fase
+    const faseMobile = document.getElementById('filtro-fase-mobile');
+    if (faseMobile) {
+        faseMobile.innerHTML = '<option value="Todos">Todas las Fases</option>';
+        fasesUnicas.forEach(f => {
+            const faseInfo = dashboardData.fases.find(fs => fs.Codigo === f);
+            const label = faseInfo ? `${f} - ${faseInfo.Nombre_Fase}` : f;
+            faseMobile.innerHTML += `<option value="${f}">${label}</option>`;
+        });
+        faseMobile.value = filtroFase;
+    }
+
+    // Mobile Usuario
+    const userMobile = document.getElementById('filtro-usuario-mobile');
+    if (userMobile) {
+        userMobile.innerHTML = '<option value="Todos">Todos los Usuarios</option>';
+        emailsEnUso.forEach(email => {
+            const name = getUserNameShort(email);
+            userMobile.innerHTML += `<option value="${email}">${name}</option>`;
+        });
+        userMobile.value = filtroUsuario;
+    }
 }
 
 function onFiltroTipoChange(value) {
     filtroTipo = value;
     filtroFase = 'Todos';
+    // Sync both desktop & mobile
     const faseSelect = document.getElementById('filtro-fase');
+    const faseMobile = document.getElementById('filtro-fase-mobile');
+    const tipoSelect = document.getElementById('filtro-tipo');
+    const tipoMobile = document.getElementById('filtro-tipo-mobile');
     if (faseSelect) faseSelect.value = 'Todos';
+    if (faseMobile) faseMobile.value = 'Todos';
+    if (tipoSelect) tipoSelect.value = value;
+    if (tipoMobile) tipoMobile.value = value;
     renderAllPages();
 }
 
 function onFiltroFaseChange(value) {
     filtroFase = value;
+    // Sync both desktop & mobile
+    const faseSelect = document.getElementById('filtro-fase');
+    const faseMobile = document.getElementById('filtro-fase-mobile');
+    if (faseSelect) faseSelect.value = value;
+    if (faseMobile) faseMobile.value = value;
     renderAllPages();
 }
 
 function onFiltroUsuarioChange(value) {
     filtroUsuario = value;
+    // Sync both desktop & mobile
+    const userSelect = document.getElementById('filtro-usuario');
+    const userMobile = document.getElementById('filtro-usuario-mobile');
+    if (userSelect) userSelect.value = value;
+    if (userMobile) userMobile.value = value;
     renderAllPages();
+}
+
+/* ==========================================
+   MOBILE MENU
+   ========================================== */
+function toggleMobileMenu() {
+    const overlay = document.getElementById('mobile-filter-overlay');
+    const panel = document.getElementById('mobile-filter-panel');
+    if (overlay && panel) {
+        overlay.classList.toggle('hidden');
+        panel.classList.toggle('hidden');
+        // Prevent body scroll when menu is open
+        if (!panel.classList.contains('hidden')) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+    }
 }
 
 /* ==========================================
@@ -196,12 +268,33 @@ function navigateTo(page, detail = null) {
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     const targetPage = document.getElementById(`page-${page}`);
     if (targetPage) targetPage.classList.remove('hidden');
+
+    // Update desktop sidebar nav
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.toggle('active', item.dataset.page === page);
     });
+
+    // Update mobile bottom nav
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === page);
+    });
+
+    // Close mobile menu if open
+    const overlay = document.getElementById('mobile-filter-overlay');
+    const panel = document.getElementById('mobile-filter-panel');
+    if (overlay && !overlay.classList.contains('hidden')) {
+        overlay.classList.add('hidden');
+        panel.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
     if (page === 'detalle' && detail) {
         renderDetallePage(detail);
     }
+
+    // Scroll to top on page change
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.scrollTop = 0;
 }
 
 /* ==========================================
