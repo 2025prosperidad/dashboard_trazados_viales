@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Trazados Viales</title>
+    <title>Dashboard Trazados Viales - Prefectura de Pichincha</title>
     <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/lucide-static@latest/font/lucide.css" rel="stylesheet">
@@ -13,24 +13,24 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
-                <div class="logo-circle">TV</div>
+                <img src="assets/logo.png" alt="Prefectura de Pichincha" class="logo-img">
             </div>
-            <div class="sidebar-user">
-                <span>Byron<br>Saycho-Lopez</span>
+            <div class="sidebar-brand">
+                <span>TRAZADOS<br>VIALES</span>
             </div>
             <div class="sidebar-divider"></div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-page="ranking" onclick="navigateTo('ranking')">
-                    <i class="lucide lucide-list"></i>
-                    <span>Ranking<br>Oficina</span>
+                    <i class="lucide lucide-bar-chart-3"></i>
+                    <span>Ranking</span>
                 </a>
                 <a href="#" class="nav-item" data-page="productividad" onclick="navigateTo('productividad')">
-                    <i class="lucide lucide-trending-up"></i>
+                    <i class="lucide lucide-users"></i>
                     <span>Productividad</span>
                 </a>
                 <a href="#" class="nav-item" data-page="tipo" onclick="navigateTo('tipo')">
-                    <i class="lucide lucide-search"></i>
-                    <span>Tipo de<br>Tramite</span>
+                    <i class="lucide lucide-layers"></i>
+                    <span>Tramites</span>
                 </a>
             </nav>
         </aside>
@@ -42,20 +42,36 @@
                 <div class="header-left">
                     <i class="lucide lucide-map-pin header-icon"></i>
                     <h1 class="header-title">DASHBOARD TRAZADOS VIALES</h1>
+                    <span class="header-subtitle">Prefectura de Pichincha</span>
                 </div>
                 <div class="header-right">
                     <button class="btn-reset" onclick="loadData()">
-                        <i class="lucide lucide-rotate-ccw"></i> Reset
+                        <i class="lucide lucide-rotate-ccw"></i> Actualizar
                     </button>
-                    <button class="btn-share">
-                        <i class="lucide lucide-share-2"></i> Compartir
-                    </button>
-                    <button class="btn-edit">
-                        <i class="lucide lucide-pencil"></i> Editar
-                    </button>
-                    <div class="avatar">BS</div>
                 </div>
             </header>
+
+            <!-- Filter Bar (global) -->
+            <div class="global-filter-bar">
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-user"></i> Usuario:</label>
+                    <select id="filtro-usuario" class="filter-select" onchange="onFiltroUsuarioChange(this.value)">
+                        <option value="Todos">Todos los Usuarios</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-folder"></i> Tipo:</label>
+                    <select id="filtro-tipo" class="filter-select" onchange="onFiltroTipoChange(this.value)">
+                        <option value="Todos">Todos los Tipos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-git-branch"></i> Fase:</label>
+                    <select id="filtro-fase" class="filter-select" onchange="onFiltroFaseChange(this.value)">
+                        <option value="Todos">Todas las Fases</option>
+                    </select>
+                </div>
+            </div>
 
             <!-- Page: Ranking -->
             <section class="page" id="page-ranking">
@@ -67,28 +83,12 @@
                             <span id="date-range">Cargando...</span>
                         </div>
                     </div>
-                    <div class="filter-bar">
-                        <div class="filter-group">
-                            <label class="filter-label"><i class="lucide lucide-sliders-horizontal"></i> Tipo:</label>
-                            <select id="filtro-tipo" class="filter-select" onchange="onFiltroTipoChange(this.value)">
-                                <option value="Todos">Todos los Tipos</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label class="filter-label"><i class="lucide lucide-filter"></i> Fase:</label>
-                            <select id="filtro-fase" class="filter-select" onchange="onFiltroFaseChange(this.value)">
-                                <option value="Todos">Todas las Fases</option>
-                            </select>
-                        </div>
+                    <div id="estado-badges" class="estado-badges-row">
+                        <!-- Filled by JS -->
                     </div>
                     <div class="content-row">
                         <!-- Left Column: Ranking Cards -->
                         <div class="ranking-col">
-                            <div class="tabs">
-                                <button class="tab active">Propuesta</button>
-                                <button class="tab">Produccion</button>
-                                <button class="tab">Subsidios</button>
-                            </div>
                             <div id="ranking-cards">
                                 <!-- Filled by JS -->
                             </div>
@@ -116,9 +116,6 @@
                                     </tr>
                                 </tfoot>
                             </table>
-                            <div class="table-pagination">
-                                <span>1</span> <span>-</span> <span>7</span>
-                            </div>
                         </div>
                         <!-- Right Column: Donut Chart -->
                         <div class="chart-col">
@@ -138,7 +135,7 @@
             <section class="page hidden" id="page-productividad">
                 <div class="page-body">
                     <div class="title-row">
-                        <h2 class="page-title">Productividad</h2>
+                        <h2 class="page-title">Productividad por Responsable</h2>
                     </div>
                     <div class="kpi-row" id="prod-kpis">
                         <!-- Filled by JS -->
@@ -150,9 +147,9 @@
                                 <thead>
                                     <tr>
                                         <th>Responsable</th>
-                                        <th>Fases</th>
-                                        <th>Completadas</th>
+                                        <th>Tramites</th>
                                         <th>En Progreso</th>
+                                        <th>Completados</th>
                                     </tr>
                                 </thead>
                                 <tbody id="prod-table-body">
@@ -162,14 +159,14 @@
                                     <tr>
                                         <td><strong>Total</strong></td>
                                         <td id="prod-total-fases">0</td>
-                                        <td id="prod-total-comp">0</td>
                                         <td id="prod-total-prog">0</td>
+                                        <td id="prod-total-comp">0</td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                         <div class="prod-bars-col">
-                            <h3>Avance por Tramite</h3>
+                            <h3>Avance por Tipo</h3>
                             <div id="prod-bars">
                                 <!-- Filled by JS -->
                             </div>
@@ -182,8 +179,8 @@
             <section class="page hidden" id="page-tipo">
                 <div class="page-body">
                     <div class="title-row">
-                        <h2 class="page-title">Tipo de Tramite</h2>
-                        <span class="badge-green" id="tipos-badge">0 Tipos Registrados</span>
+                        <h2 class="page-title">Tramites - Fases y Estados</h2>
+                        <span class="badge-green" id="tipos-badge">0 Tramites Activos</span>
                     </div>
                     <div class="kpi-row" id="tipo-kpis">
                         <!-- Filled by JS -->
@@ -194,9 +191,10 @@
                                 <thead>
                                     <tr>
                                         <th>Codigo</th>
-                                        <th>Tipo de Tramite</th>
+                                        <th>Solicitante</th>
                                         <th>Fases</th>
                                         <th>Fase Actual</th>
+                                        <th>Responsable</th>
                                         <th>Estado</th>
                                     </tr>
                                 </thead>
@@ -228,7 +226,7 @@
                     <div class="back-row">
                         <a href="#" onclick="navigateTo('tipo'); return false;">
                             <i class="lucide lucide-arrow-left"></i>
-                            Volver a Tipo de Tramite
+                            Volver a Tramites
                         </a>
                     </div>
                     <div class="title-row">
@@ -273,12 +271,6 @@
                                 <div class="progress-stats" id="detail-progress-stats">
                                     <!-- Filled by JS -->
                                 </div>
-                            </div>
-                            <div class="actions-card">
-                                <h3>Acciones</h3>
-                                <button class="action-btn primary"><i class="lucide lucide-eye"></i> Ver Documentos</button>
-                                <button class="action-btn outline"><i class="lucide lucide-history"></i> Historial de Cambios</button>
-                                <button class="action-btn ghost"><i class="lucide lucide-printer"></i> Imprimir Reporte</button>
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,6 @@
 /* ==========================================
    API ORTEGON v2.0 - Conexion
+   Dashboard Trazados Viales - Prefectura de Pichincha
    ========================================== */
 
 const API_CONFIG = {
@@ -8,8 +9,31 @@ const API_CONFIG = {
 };
 
 /**
+ * Usuarios de BD2 TRAZADOS VIALES APP PICHINCHA
+ * Hoja: Usuarios (spreadsheet: 1aGRbWiozcDoCEEzPRKi2Jx11CzbroGB74plasRTlO44)
+ * Nota: La API actual solo apunta a BD1. Cuando se actualice el GAS
+ * para soportar multiples spreadsheets, reemplazar esto por una llamada API.
+ */
+const USUARIOS_BD2 = [
+    { ID_Usuario: 1, Nombre: 'BENITEZ CARRILLO SONIA ELIZABETH', Rol: 'Ventanilla', Email: 'sbenitez@pichincha.gob.ec' },
+    { ID_Usuario: 4, Nombre: 'ASIMBAYA SOCASI KATTY VANESSA', Rol: 'Tecnico', Email: 'asocaci@pichincha.gob.ec' },
+    { ID_Usuario: 5, Nombre: 'GARCIA CANDO CRISTINA PAOLA', Rol: 'Tecnico', Email: 'cgarcia@pichincha.gob.ec' },
+    { ID_Usuario: 6, Nombre: 'GUALPA DIAZ CRISTIAN PATRICIO', Rol: 'Tecnico', Email: 'cgualpa@pichincha.gob.ec' },
+    { ID_Usuario: 7, Nombre: 'VARGAS BARRERO EVELYN LORENA', Rol: 'Tecnico', Email: 'evargas@pichincha.gob.ec' },
+    { ID_Usuario: 8, Nombre: 'SILVA CISNEROS SANTIAGO DAVID', Rol: 'Tecnico', Email: 'ssilva@pichincha.gob.ec' },
+    { ID_Usuario: 9, Nombre: 'MORILLO OCHOA DANIELA NICOLE', Rol: 'Tecnico', Email: 'dmorillo@pichincha.gob.ec' },
+    { ID_Usuario: 10, Nombre: 'NORONA MEDINA CARLA MONSERRATH', Rol: 'Tecnico', Email: 'cnorona@pichincha.gob.ec' },
+    { ID_Usuario: 11, Nombre: 'CABEZAS MARCILLO IRENE ABIGAIL', Rol: 'Tecnico', Email: 'icabezas@pichincha.gob.ec' },
+    { ID_Usuario: 12, Nombre: 'OSEJO CARDENAS JAIRO RAMIRO', Rol: 'Tecnico', Email: 'josejo@pichincha.gob.ec' },
+    { ID_Usuario: 14, Nombre: 'MINO CHAVEZ JEFFERSON ROMARIO', Rol: 'Supervisor', Email: 'jrmino@pichincha.gob.ec' },
+    { ID_Usuario: 15, Nombre: 'RIVERA ALVAREZ ALEX IVAN', Rol: 'Supervisor', Email: 'irivera@pichincha.gob.ec' },
+    { ID_Usuario: 16, Nombre: 'EXPERT', Rol: 'Administrador', Email: 'expert@infinity-solutions.community' },
+    { ID_Usuario: 17, Nombre: 'SANGOLUISA LLUMIQUINGA ANDREA', Rol: 'Supervisor', Email: 'asangoluisa@pichincha.gob.ec' },
+    { ID_Usuario: 18, Nombre: 'LOAIZA TOSCANO DORIS SORAYA', Rol: 'Ventanilla', Email: 'dloaiza@pichincha.gob.ec' }
+];
+
+/**
  * Fetch data from API Ortegon v2.0
- * Google Apps Script redirects, so we handle that
  */
 async function apiRequest(action, params = {}) {
     const queryParams = new URLSearchParams({
@@ -43,25 +67,8 @@ async function apiRequest(action, params = {}) {
     }
 }
 
-/**
- * Get all data from a sheet (export action)
- */
 async function getData(sheetName) {
     return apiRequest('export', { sheet: sheetName });
-}
-
-/**
- * Get schema of a sheet
- */
-async function getSchema(sheetName) {
-    return apiRequest('schema', { sheet: sheetName });
-}
-
-/**
- * Get list of all sheets
- */
-async function getSheets() {
-    return apiRequest('sheets');
 }
 
 /**
@@ -80,7 +87,8 @@ async function fetchAllDashboardData() {
             intake: intakeData.data || [],
             fases: fasesData.data || [],
             tiempos: tiemposData.data || [],
-            tipos: tipoData.data || []
+            tipos: tipoData.data || [],
+            usuarios: USUARIOS_BD2
         };
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -89,7 +97,7 @@ async function fetchAllDashboardData() {
 }
 
 /**
- * Fallback data in case API is unreachable
+ * Fallback data
  */
 function getFallbackData() {
     return {
@@ -123,13 +131,14 @@ function getFallbackData() {
             { id_tramite: 'c053e099', fase: 'RV-01', fecha_hora: '2026-02-13T23:48:42.000Z', fecha_hora_fin: '', 'ASIGNADO A': 'ssilva@pichincha.gob.ec' }
         ],
         tipos: [
-            { Codigo: 'TV', Nombre: 'Trazado Vial', color: '#1B3A5C' },
-            { Codigo: 'CV', Nombre: 'Certificacion Vial', color: '#2A7DE1' },
-            { Codigo: 'RV', Nombre: 'Replanteo Vial', color: '#4CAF50' },
-            { Codigo: 'STP', Nombre: 'Seccion Transversal Proyectada', color: '#FF9800' },
-            { Codigo: 'CEV', Nombre: 'Colocacion de Eje Vial', color: '#9C27B0' },
-            { Codigo: 'CI', Nombre: 'Colocacion de Infraestructura', color: '#E91E63' },
-            { Codigo: 'DCP', Nombre: 'Factibilidad Declaratoria Camino Publico', color: '#795548' }
-        ]
+            { Codigo: 'TV', Nombre: 'Trazado Vial' },
+            { Codigo: 'CV', Nombre: 'Certificacion Vial' },
+            { Codigo: 'RV', Nombre: 'Replanteo Vial' },
+            { Codigo: 'STP', Nombre: 'Seccion Transversal Proyectada' },
+            { Codigo: 'CEV', Nombre: 'Colocacion de Eje Vial' },
+            { Codigo: 'CI', Nombre: 'Colocacion de Infraestructura' },
+            { Codigo: 'DCP', Nombre: 'Factibilidad Declaratoria Camino Publico' }
+        ],
+        usuarios: USUARIOS_BD2
     };
 }
