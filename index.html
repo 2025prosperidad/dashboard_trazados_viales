@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Trazados Viales</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/lucide-static@latest/font/lucide.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-circle">TV</div>
+            </div>
+            <div class="sidebar-user">
+                <span>Byron<br>Saycho-Lopez</span>
+            </div>
+            <div class="sidebar-divider"></div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="ranking" onclick="navigateTo('ranking')">
+                    <i class="lucide lucide-list"></i>
+                    <span>Ranking<br>Oficina</span>
+                </a>
+                <a href="#" class="nav-item" data-page="productividad" onclick="navigateTo('productividad')">
+                    <i class="lucide lucide-trending-up"></i>
+                    <span>Productividad</span>
+                </a>
+                <a href="#" class="nav-item" data-page="tipo" onclick="navigateTo('tipo')">
+                    <i class="lucide lucide-search"></i>
+                    <span>Tipo de<br>Tramite</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <i class="lucide lucide-map-pin header-icon"></i>
+                    <h1 class="header-title">DASHBOARD TRAZADOS VIALES</h1>
+                </div>
+                <div class="header-right">
+                    <button class="btn-reset" onclick="loadData()">
+                        <i class="lucide lucide-rotate-ccw"></i> Reset
+                    </button>
+                    <button class="btn-share">
+                        <i class="lucide lucide-share-2"></i> Compartir
+                    </button>
+                    <button class="btn-edit">
+                        <i class="lucide lucide-pencil"></i> Editar
+                    </button>
+                    <div class="avatar">BS</div>
+                </div>
+            </header>
+
+            <!-- Page: Ranking -->
+            <section class="page" id="page-ranking">
+                <div class="page-body">
+                    <div class="title-row">
+                        <h2 class="page-title">Ranking por Tipo de Tramite</h2>
+                        <div class="date-badge">
+                            <i class="lucide lucide-calendar"></i>
+                            <span id="date-range">Cargando...</span>
+                        </div>
+                    </div>
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label class="filter-label"><i class="lucide lucide-sliders-horizontal"></i> Tipo:</label>
+                            <select id="filtro-tipo" class="filter-select" onchange="onFiltroTipoChange(this.value)">
+                                <option value="Todos">Todos los Tipos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label"><i class="lucide lucide-filter"></i> Fase:</label>
+                            <select id="filtro-fase" class="filter-select" onchange="onFiltroFaseChange(this.value)">
+                                <option value="Todos">Todas las Fases</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="content-row">
+                        <!-- Left Column: Ranking Cards -->
+                        <div class="ranking-col">
+                            <div class="tabs">
+                                <button class="tab active">Propuesta</button>
+                                <button class="tab">Produccion</button>
+                                <button class="tab">Subsidios</button>
+                            </div>
+                            <div id="ranking-cards">
+                                <!-- Filled by JS -->
+                            </div>
+                            <div class="ranking-total" id="ranking-total">
+                                <span class="total-label">TOTAL</span>
+                                <span class="total-value" id="total-value">0</span>
+                            </div>
+                        </div>
+                        <!-- Center Column: Table -->
+                        <div class="table-col">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo de Tramite</th>
+                                        <th>Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ranking-table-body">
+                                    <!-- Filled by JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Gran total</strong></td>
+                                        <td id="grand-total">0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <div class="table-pagination">
+                                <span>1</span> <span>-</span> <span>7</span>
+                            </div>
+                        </div>
+                        <!-- Right Column: Donut Chart -->
+                        <div class="chart-col">
+                            <h3>Distribucion por Tipo</h3>
+                            <div class="donut-container">
+                                <canvas id="donutChart" width="200" height="200"></canvas>
+                            </div>
+                            <div id="donut-legend" class="donut-legend">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Page: Productividad -->
+            <section class="page hidden" id="page-productividad">
+                <div class="page-body">
+                    <div class="title-row">
+                        <h2 class="page-title">Productividad</h2>
+                    </div>
+                    <div class="kpi-row" id="prod-kpis">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="content-row">
+                        <div class="prod-table-col">
+                            <h3>Responsables</h3>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Responsable</th>
+                                        <th>Fases</th>
+                                        <th>Completadas</th>
+                                        <th>En Progreso</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prod-table-body">
+                                    <!-- Filled by JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td id="prod-total-fases">0</td>
+                                        <td id="prod-total-comp">0</td>
+                                        <td id="prod-total-prog">0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="prod-bars-col">
+                            <h3>Avance por Tramite</h3>
+                            <div id="prod-bars">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Page: Tipo de Tramite -->
+            <section class="page hidden" id="page-tipo">
+                <div class="page-body">
+                    <div class="title-row">
+                        <h2 class="page-title">Tipo de Tramite</h2>
+                        <span class="badge-green" id="tipos-badge">0 Tipos Registrados</span>
+                    </div>
+                    <div class="kpi-row" id="tipo-kpis">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="content-row">
+                        <div class="tipo-table-col">
+                            <table class="data-table tipo-table">
+                                <thead>
+                                    <tr>
+                                        <th>Codigo</th>
+                                        <th>Tipo de Tramite</th>
+                                        <th>Fases</th>
+                                        <th>Fase Actual</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tipo-table-body">
+                                    <!-- Filled by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="tipo-chart-col">
+                            <div class="chart-card">
+                                <h3>Tramites por Tipo</h3>
+                                <p class="chart-subtitle">Cantidad de tramites activos por tipo</p>
+                                <div id="tipo-bars">
+                                    <!-- Filled by JS -->
+                                </div>
+                                <div class="chart-divider"></div>
+                                <div class="chart-summary" id="tipo-summary">
+                                    <!-- Filled by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Page: Detalle de Tramite -->
+            <section class="page hidden" id="page-detalle">
+                <div class="page-body">
+                    <div class="back-row">
+                        <a href="#" onclick="navigateTo('tipo'); return false;">
+                            <i class="lucide lucide-arrow-left"></i>
+                            Volver a Tipo de Tramite
+                        </a>
+                    </div>
+                    <div class="title-row">
+                        <div class="detail-title-left">
+                            <span class="type-badge-lg" id="detail-code">TV</span>
+                            <h2 class="page-title" id="detail-name">Trazado Vial</h2>
+                            <span class="phase-badge" id="detail-phase">Fase Actual: TV-03</span>
+                        </div>
+                        <span class="status-badge" id="detail-status">
+                            <span class="status-dot"></span> En Progreso
+                        </span>
+                    </div>
+                    <div class="content-row">
+                        <div class="detail-phases-col">
+                            <div class="phases-header">
+                                <h3>Fases del Tramite</h3>
+                                <span class="phases-count" id="detail-phases-count">0 de 0 completadas</span>
+                            </div>
+                            <div class="phases-list" id="detail-phases-list">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                        <div class="detail-info-col">
+                            <div class="info-card">
+                                <h3>Informacion del Tramite</h3>
+                                <div class="info-divider"></div>
+                                <div class="info-fields" id="detail-info-fields">
+                                    <!-- Filled by JS -->
+                                </div>
+                            </div>
+                            <div class="progress-card">
+                                <h3>Avance General</h3>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill" id="detail-progress-bar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="progress-row">
+                                    <span class="progress-pct" id="detail-progress-pct">0% Completado</span>
+                                    <span class="progress-frac" id="detail-progress-frac">0 / 0 fases</span>
+                                </div>
+                                <div class="progress-stats" id="detail-progress-stats">
+                                    <!-- Filled by JS -->
+                                </div>
+                            </div>
+                            <div class="actions-card">
+                                <h3>Acciones</h3>
+                                <button class="action-btn primary"><i class="lucide lucide-eye"></i> Ver Documentos</button>
+                                <button class="action-btn outline"><i class="lucide lucide-history"></i> Historial de Cambios</button>
+                                <button class="action-btn ghost"><i class="lucide lucide-printer"></i> Imprimir Reporte</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <p>Cargando datos...</p>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
