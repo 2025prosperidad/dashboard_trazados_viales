@@ -207,18 +207,19 @@ body {
    ========================================== */
 .global-filter-bar {
     display: flex;
-    gap: 16px;
+    gap: 12px 16px; /* row-gap, col-gap */
     align-items: center;
     padding: 10px 24px;
     background: var(--white);
     border-bottom: 1px solid var(--gray-200);
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* Important to handle 8 filters */
 }
 
 .filter-group {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex: 0 0 auto; /* Stop them from growing out of proportion */
 }
 
 .filter-label {
@@ -240,13 +241,22 @@ body {
     background: var(--gray-100);
     border: 1px solid var(--gray-300);
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 5px 8px; /* Slightly reduced padding */
     font-family: 'Inter', sans-serif;
     font-size: 12px;
     color: var(--navy);
     cursor: pointer;
     transition: all 0.2s;
-    min-width: 170px;
+    min-width: 140px; /* Reduced min-width to fit more elements */
+    max-width: 250px;
+}
+
+.filter-select[type="date"] {
+    min-width: 125px; /* Dates don't need to be as wide */
+}
+
+.filter-select[type="text"] {
+    cursor: text;
 }
 
 .filter-select:hover { border-color: var(--gold); }

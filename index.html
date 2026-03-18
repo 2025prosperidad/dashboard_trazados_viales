@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/lucide-static@latest/font/lucide.css" rel="stylesheet">
 </head>
+
 <body>
     <div class="dashboard">
         <!-- Sidebar -->
@@ -57,6 +59,7 @@
 
             <!-- Filter Bar (global) -->
             <div class="global-filter-bar">
+                <!-- Selectores Principales -->
                 <div class="filter-group">
                     <label class="filter-label"><i class="lucide lucide-user"></i> Usuario:</label>
                     <select id="filtro-usuario" class="filter-select" onchange="onFiltroUsuarioChange(this.value)">
@@ -74,6 +77,49 @@
                     <select id="filtro-fase" class="filter-select" onchange="onFiltroFaseChange(this.value)">
                         <option value="Todos">Todas las Fases</option>
                     </select>
+                </div>
+
+                <!-- Nuevos Filtros: Fechas -->
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-calendar"></i> F. Inicio Desde:</label>
+                    <input type="date" id="filtro-inicio-desde" class="filter-select"
+                        onchange="onFiltroInicioDesdeChange(this.value)">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-calendar"></i> F. Inicio Hasta:</label>
+                    <input type="date" id="filtro-inicio-hasta" class="filter-select"
+                        onchange="onFiltroInicioHastaChange(this.value)">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-calendar-check"></i> F. Cumpl. Desde:</label>
+                    <input type="date" id="filtro-cumpl-desde" class="filter-select"
+                        onchange="onFiltroCumplDesdeChange(this.value)">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-calendar-check"></i> F. Cumpl. Hasta:</label>
+                    <input type="date" id="filtro-cumpl-hasta" class="filter-select"
+                        onchange="onFiltroCumplHastaChange(this.value)">
+                </div>
+
+                <!-- Nuevos Filtros: Ubicacion -->
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-map"></i> Cantón:</label>
+                    <select id="filtro-canton" class="filter-select" onchange="onFiltroCantonChange(this.value)">
+                        <option value="Todos">Todos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-map-pin"></i> Parroquia:</label>
+                    <select id="filtro-parroquia" class="filter-select" onchange="onFiltroParroquiaChange(this.value)">
+                        <option value="Todos">Todas</option>
+                    </select>
+                </div>
+
+                <!-- Nuevo Filtro: Solicitante (Busqueda de Texto) -->
+                <div class="filter-group">
+                    <label class="filter-label"><i class="lucide lucide-search"></i> Solicitante:</label>
+                    <input type="text" id="filtro-nombre" class="filter-select" placeholder="Buscar por nombre..."
+                        oninput="onFiltroNombreChange(this.value)">
                 </div>
             </div>
 
@@ -307,23 +353,78 @@
             <button onclick="toggleMobileMenu()"><i class="lucide lucide-x"></i></button>
         </div>
         <div class="mobile-filter-body">
+            <!-- Selectores Principales -->
             <div class="mobile-filter-group">
                 <label>Usuario</label>
-                <select id="filtro-usuario-mobile" class="filter-select" onchange="document.getElementById('filtro-usuario').value=this.value; onFiltroUsuarioChange(this.value)">
+                <select id="filtro-usuario-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-usuario').value=this.value; onFiltroUsuarioChange(this.value)">
                     <option value="Todos">Todos los Usuarios</option>
                 </select>
             </div>
             <div class="mobile-filter-group">
                 <label>Tipo</label>
-                <select id="filtro-tipo-mobile" class="filter-select" onchange="document.getElementById('filtro-tipo').value=this.value; onFiltroTipoChange(this.value)">
+                <select id="filtro-tipo-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-tipo').value=this.value; onFiltroTipoChange(this.value)">
                     <option value="Todos">Todos los Tipos</option>
                 </select>
             </div>
             <div class="mobile-filter-group">
                 <label>Fase</label>
-                <select id="filtro-fase-mobile" class="filter-select" onchange="document.getElementById('filtro-fase').value=this.value; onFiltroFaseChange(this.value)">
+                <select id="filtro-fase-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-fase').value=this.value; onFiltroFaseChange(this.value)">
                     <option value="Todos">Todas las Fases</option>
                 </select>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #DEE2E6; margin: 10px 0;">
+
+            <!-- Nuevos Filtros: Fechas -->
+            <div class="mobile-filter-group">
+                <label>F. Inicio Desde</label>
+                <input type="date" id="filtro-inicio-desde-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-inicio-desde').value=this.value; onFiltroInicioDesdeChange(this.value)">
+            </div>
+            <div class="mobile-filter-group">
+                <label>F. Inicio Hasta</label>
+                <input type="date" id="filtro-inicio-hasta-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-inicio-hasta').value=this.value; onFiltroInicioHastaChange(this.value)">
+            </div>
+            <div class="mobile-filter-group">
+                <label>F. Cumpl. Desde</label>
+                <input type="date" id="filtro-cumpl-desde-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-cumpl-desde').value=this.value; onFiltroCumplDesdeChange(this.value)">
+            </div>
+            <div class="mobile-filter-group">
+                <label>F. Cumpl. Hasta</label>
+                <input type="date" id="filtro-cumpl-hasta-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-cumpl-hasta').value=this.value; onFiltroCumplHastaChange(this.value)">
+            </div>
+
+            <hr style="border:0; border-top:1px solid #DEE2E6; margin: 10px 0;">
+
+            <!-- Nuevos Filtros: Ubicacion -->
+            <div class="mobile-filter-group">
+                <label>Cantón</label>
+                <select id="filtro-canton-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-canton').value=this.value; onFiltroCantonChange(this.value)">
+                    <option value="Todos">Todos</option>
+                </select>
+            </div>
+            <div class="mobile-filter-group">
+                <label>Parroquia</label>
+                <select id="filtro-parroquia-mobile" class="filter-select"
+                    onchange="document.getElementById('filtro-parroquia').value=this.value; onFiltroParroquiaChange(this.value)">
+                    <option value="Todos">Todas</option>
+                </select>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #DEE2E6; margin: 10px 0;">
+
+            <!-- Nuevo Filtro: Solicitante -->
+            <div class="mobile-filter-group" style="margin-bottom: 20px;">
+                <label>Solicitante</label>
+                <input type="text" id="filtro-nombre-mobile" class="filter-select" placeholder="Buscar por nombre..."
+                    oninput="document.getElementById('filtro-nombre').value=this.value; onFiltroNombreChange(this.value)">
             </div>
         </div>
     </div>
@@ -337,4 +438,5 @@
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>
