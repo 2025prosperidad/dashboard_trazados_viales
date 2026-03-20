@@ -337,7 +337,7 @@ body {
    ========================================== */
 .content-row {
     display: flex;
-    gap: 20px;
+    gap: 16px; /* Tighter layout */
     flex: 1;
     min-height: 0;
 }
@@ -349,8 +349,9 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-width: 260px;
-    max-width: 350px;
+    flex: 1; /* Symmetric weight */
+    min-width: 280px;
+    max-width: 360px; /* Symmetrical with chart */
 }
 
 .ranking-card {
@@ -478,8 +479,9 @@ body {
 }
 
 .ranking-resp-table-col {
-    flex: 0 1 600px !important; /* Balanced width */
-    margin: 0 auto;
+    flex: 1.5 !important; /* Dominant but balanced */
+    max-width: 750px;
+    margin: 0; /* Let it flow in flex */
 }
 
 .data-table {
@@ -572,14 +574,15 @@ body {
    DONUT CHART
    ========================================== */
 .chart-col {
-    min-width: 220px;
-    max-width: 400px;
+    min-width: 280px;
+    max-width: 360px; /* Symmetrical with ranking cards */
+    flex: 1; /* Symmetric weight */
     display: flex;
     flex-direction: column;
     gap: 12px;
     background: var(--white);
     border-radius: 12px;
-    padding: 16px;
+    padding: 20px; /* More emphasis */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
@@ -592,8 +595,8 @@ body {
 .donut-container {
     display: flex;
     justify-content: center;
-    padding: 12px 0;
-    height: 280px; /* Bigger chart area */
+    padding: 15px 0;
+    height: 300px; /* Maximum visual priority */
 }
 
 .donut-legend {
