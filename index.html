@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/lucide-static@latest/font/lucide.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -25,6 +26,10 @@
                 <a href="#" class="nav-item active" data-page="ranking" onclick="navigateTo('ranking')">
                     <i class="lucide lucide-bar-chart-3"></i>
                     <span>Ranking</span>
+                </a>
+                <a href="#" class="nav-item" data-page="ranking-responsables" onclick="navigateTo('ranking-responsables')">
+                    <i class="lucide lucide-award"></i>
+                    <span>Ranking Responsables</span>
                 </a>
                 <a href="#" class="nav-item" data-page="productividad" onclick="navigateTo('productividad')">
                     <i class="lucide lucide-users"></i>
@@ -270,6 +275,64 @@
                 </div>
             </section>
 
+            <!-- Page: Ranking Responsables -->
+            <section class="page hidden" id="page-ranking-responsables">
+                <div class="page-body">
+                    <div class="title-row">
+                        <h2 class="page-title">Ranking Responsables</h2>
+                        <div class="status-selector-row">
+                            <button class="btn-status-filter active" data-status="total" onclick="setRankingResponsablesStatus('total')">Total</button>
+                            <button class="btn-status-filter" data-status="en_progreso" onclick="setRankingResponsablesStatus('en_progreso')">En Progreso</button>
+                            <button class="btn-status-filter" data-status="completado" onclick="setRankingResponsablesStatus('completado')">Completados</button>
+                            <button class="btn-status-filter" data-status="archivado" onclick="setRankingResponsablesStatus('archivado')">Archivados</button>
+                        </div>
+                    </div>
+                    
+                    <div class="content-row">
+                        <!-- Left Column: Ranking Cards -->
+                        <div class="ranking-col">
+                            <div id="ranking-resp-cards">
+                                <!-- Filled by JS -->
+                            </div>
+                            <div class="ranking-total" id="ranking-resp-total-box">
+                                <span class="total-label">TOTAL</span>
+                                <span class="total-value" id="ranking-resp-total-value">0</span>
+                            </div>
+                        </div>
+                        <!-- Center Column: Table -->
+                        <div class="table-col ranking-resp-table-col">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Responsable</th>
+                                        <th style="text-align:center">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ranking-resp-table-body">
+                                    <!-- Filled by JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Gran total</strong></td>
+                                        <td id="ranking-resp-grand-total" style="text-align:center">0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <!-- Right Column: Donut Chart -->
+                        <div class="chart-col">
+                            <h3>Distribucion</h3>
+                            <div class="donut-container">
+                                <canvas id="donutChartResp" width="200" height="200"></canvas>
+                            </div>
+                            <div id="donut-legend-resp" class="donut-legend">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Page: Detalle de Tramite -->
             <section class="page hidden" id="page-detalle">
                 <div class="page-body">
@@ -335,9 +398,13 @@
             <i class="lucide lucide-bar-chart-3"></i>
             <span>Ranking</span>
         </a>
+        <a href="#" class="mobile-nav-item" data-page="ranking-responsables" onclick="navigateTo('ranking-responsables')">
+            <i class="lucide lucide-award"></i>
+            <span>R. Resp.</span>
+        </a>
         <a href="#" class="mobile-nav-item" data-page="productividad" onclick="navigateTo('productividad')">
             <i class="lucide lucide-users"></i>
-            <span>Productividad</span>
+            <span>Prod.</span>
         </a>
         <a href="#" class="mobile-nav-item" data-page="tipo" onclick="navigateTo('tipo')">
             <i class="lucide lucide-layers"></i>

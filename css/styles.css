@@ -350,7 +350,7 @@ body {
     flex-direction: column;
     gap: 12px;
     min-width: 260px;
-    max-width: 300px;
+    max-width: 350px;
 }
 
 .ranking-card {
@@ -426,6 +426,48 @@ body {
 }
 
 /* ==========================================
+   RANKING RESPONSABLES
+   ========================================== */
+.status-selector-row {
+    display: flex;
+    background: var(--gray-100);
+    padding: 4px;
+    border-radius: 8px;
+    gap: 4px;
+}
+
+.btn-status-filter {
+    padding: 6px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-500);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-status-filter:hover {
+    color: var(--navy);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.btn-status-filter.active {
+    background: var(--white);
+    color: var(--navy);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Ranking cards sub-labels */
+.ranking-sublabel {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-top: 2px;
+}
+
+/* ==========================================
    TABLE
    ========================================== */
 .table-col {
@@ -433,6 +475,11 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 250px;
+}
+
+.ranking-resp-table-col {
+    flex: 0 1 600px !important; /* Balanced width */
+    margin: 0 auto;
 }
 
 .data-table {
@@ -526,7 +573,7 @@ body {
    ========================================== */
 .chart-col {
     min-width: 220px;
-    max-width: 260px;
+    max-width: 400px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -545,7 +592,8 @@ body {
 .donut-container {
     display: flex;
     justify-content: center;
-    padding: 8px 0;
+    padding: 12px 0;
+    height: 280px; /* Bigger chart area */
 }
 
 .donut-legend {
@@ -1534,6 +1582,19 @@ body {
     .date-badge {
         font-size: 11px;
         padding: 4px 10px;
+    }
+
+    .status-selector-row {
+        width: 100%;
+        overflow-x: auto;
+        padding: 4px;
+        justify-content: flex-start;
+    }
+    
+    .btn-status-filter {
+        flex: 1;
+        white-space: nowrap;
+        padding: 6px 10px;
     }
 }
 

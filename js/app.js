@@ -19,6 +19,9 @@ let filtroCanton = 'Todos';
 let filtroParroquia = 'Todos';
 let filtroNombre = '';
 
+// Estado del ranking por responsable
+let filtroEstadoRanking = 'total';
+
 // Colores basados en el logo de Prefectura de Pichincha
 const TYPE_COLORS = {
     'TV': '#1A3C6E',   // Azul navy
@@ -99,6 +102,18 @@ function parseDateOnly(dateString) {
     // Strip time for pure date comparisons
     date.setHours(0, 0, 0, 0);
     return date;
+}
+
+function getFaseName(code) {
+    if (!dashboardData || !code) return code || 'Sin fase';
+    if (!dashboardData.fases) return code;
+    
+    const searches = [code.trim().toUpperCase(), code.trim()];
+    const fase = dashboardData.fases.find(f => {
+        const fCode = (f.ID_FASE_TRAMITE || f.CODIGO || f.Codigo || '').toString().trim();
+        return searches.includes(fCode.toUpperCase());
+    });
+    return fase ? (fase.NOMBRE_FASE || fase.Nombre_Fase || code) : code;
 }
 
 function getFilteredIntake() {
@@ -215,13 +230,35 @@ function buildFilters() {
 
     // Populate Fase filter
     const faseSelect = document.getElementById('filtro-fase');
+    const mobileFaseSelect = document.getElementById('filtro-fase-mobile');
+    
+    // Filtrar fases según el tipo seleccionado para que sea más práctico
+    let fasesFiltradas = fasesUnicas;
+    if (filtroTipo !== 'Todos') {
+        fasesFiltradas = fasesUnicas.filter(f => extractTipo(f) === filtroTipo);
+    }
+
     if (faseSelect) {
         faseSelect.innerHTML = '<option value="Todos">Todas las Fases</option>';
-        fasesUnicas.forEach(f => {
-            const faseInfo = dashboardData.fases.find(fs => fs.Codigo === f);
-            const label = faseInfo ? `${f} - ${faseInfo.Nombre_Fase}` : f;
+        fasesFiltradas.forEach(f => {
+            const label = getFaseName(f);
             faseSelect.innerHTML += `<option value="${f}">${label}</option>`;
         });
+        // Si la fase seleccionada ya no está en la lista filtrada, volver a 'Todos'
+        if (filtroFase !== 'Todos' && !fasesFiltradas.includes(filtroFase)) {
+            filtroFase = 'Todos';
+            faseSelect.value = 'Todos';
+        } else {
+            faseSelect.value = filtroFase;
+        }
+    }
+
+    if (mobileFaseSelect) {
+        mobileFaseSelect.innerHTML = '<option value="Todos">Todas las Fases</option>';
+        fasesFiltradas.forEach(f => {
+            mobileFaseSelect.innerHTML += `<option value="${f}">${getFaseName(f)}</option>`;
+        });
+        mobileFaseSelect.value = filtroFase;
     }
 
     // Populate Usuario filter
@@ -433,6 +470,12 @@ function navigateTo(page, detail = null) {
         item.classList.toggle('active', item.dataset.page === page);
     });
 
+    // Update browser title
+    if (page === 'ranking') document.title = 'Ranking - Dashboard Trazados Viales';
+    else if (page === 'ranking-responsables') document.title = 'Ranking Responsables - Dashboard Trazados Viales';
+    else if (page === 'productividad') document.title = 'Productividad - Dashboard Trazados Viales';
+    else if (page === 'tipo') document.title = 'Tramites - Dashboard Trazados Viales';
+
     // Close mobile menu if open
     const overlay = document.getElementById('mobile-filter-overlay');
     const panel = document.getElementById('mobile-filter-panel');
@@ -456,9 +499,138 @@ function navigateTo(page, detail = null) {
    ========================================== */
 function renderAllPages() {
     if (!dashboardData) return;
+    // Re-build dependent filters (like Phases) if they change based on others
+    buildFilters();
     renderRankingPage();
+    renderRankingResponsablesPage();
     renderProductividadPage();
     renderTipoPage();
+}
+
+/* ==========================================
+   PAGE 1.5: RANKING POR RESPONSABLE
+   ========================================== */
+function setRankingResponsablesStatus(status) {
+    filtroEstadoRanking = status;
+    // Update UI active class
+    document.querySelectorAll('.btn-status-filter').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === status);
+    });
+    renderRankingResponsablesPage();
+}
+
+function renderRankingResponsablesPage() {
+    const intake = getFilteredIntake();
+    const { tiempos } = dashboardData;
+    if (!intake || !tiempos) return;
+
+    // Aggregate by responsible
+    const counts = {};
+    intake.forEach(item => {
+        const resp = item.Responsible || 'Sin asignar';
+        if (!counts[resp]) {
+            counts[resp] = { total: 0, en_progreso: 0, completado: 0, archivado: 0, derivado: 0, iniciado: 0 };
+        }
+        counts[resp].total++;
+        const estado = getEstadoTramite(item, tiempos);
+        if (counts[resp][estado] !== undefined) {
+            counts[resp][estado]++;
+        }
+    });
+
+    // Sort by selected status
+    const list = Object.entries(counts).map(([name, stats]) => ({
+        email: name,
+        name: getUserNameShort(name),
+        fullName: getUserName(name),
+        count: stats[filtroEstadoRanking] || 0,
+        stats
+    })).filter(r => r.count > 0).sort((a, b) => b.count - a.count);
+
+    const grandTotal = list.reduce((sum, r) => sum + r.count, 0);
+
+    // Render Cards (Top 3)
+    const cardsContainer = document.getElementById('ranking-resp-cards');
+    if (cardsContainer) {
+        cardsContainer.innerHTML = '';
+        list.slice(0, 3).forEach((r, idx) => {
+            cardsContainer.innerHTML += `
+                <div class="ranking-card">
+                    <div class="ranking-position pos-${idx + 1}">${idx + 1}st</div>
+                    <div class="ranking-info">
+                        <div class="ranking-name">Trámites ${ESTADO_CONFIG[filtroEstadoRanking]?.label || 'Asignados'}</div>
+                        <div class="ranking-value">${r.count.toLocaleString()}</div>
+                        <div class="ranking-sublabel">${r.name}</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // Totals box
+    const totalValEl = document.getElementById('ranking-resp-total-value');
+    if (totalValEl) totalValEl.textContent = grandTotal.toLocaleString();
+    const grandTotalEl = document.getElementById('ranking-resp-grand-total');
+    if (grandTotalEl) grandTotalEl.textContent = grandTotal.toLocaleString();
+
+    // Render Table
+    const tableBody = document.getElementById('ranking-resp-table-body');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        list.forEach((r, idx) => {
+            tableBody.innerHTML += `
+                <tr>
+                    <td>${idx + 1}. ${r.fullName}</td>
+                    <td style="text-align:center">${r.count}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // Render Donut Chart
+    const chartCanvas = document.getElementById('donutChartResp');
+    if (chartCanvas) {
+        const ctx = chartCanvas.getContext('2d');
+        const chartData = list.slice(0, 6); // Top 6 for chart
+        const labels = chartData.map(r => r.name);
+        const dataValues = chartData.map(r => r.count);
+        const colors = ['#1A3C6E', '#EAB308', '#007B4F', '#E88B00', '#A52422', '#1A7878', '#6B3A2A'];
+
+        if (window.myDonutResp) window.myDonutResp.destroy();
+        
+        window.myDonutResp = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: dataValues,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Legend
+        const legend = document.getElementById('donut-legend-resp');
+        if (legend) {
+            legend.innerHTML = '';
+            chartData.forEach((r, idx) => {
+                const pct = grandTotal > 0 ? ((r.count / grandTotal) * 100).toFixed(1) : 0;
+                legend.innerHTML += `
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:${colors[idx % colors.length]}"></span>
+                        <span>${r.name}: <strong>${pct}%</strong></span>
+                    </div>
+                `;
+            });
+        }
+    }
 }
 
 /* ==========================================
@@ -698,8 +870,12 @@ function renderProductividadPage() {
         if (!typeProgress[tipo]) typeProgress[tipo] = { total: 0, totalAdvance: 0 };
         typeProgress[tipo].total++;
 
-        const faseInfo = dashboardData.fases.find(f => f.Codigo === item.Fase_del_Tramite);
-        typeProgress[tipo].totalAdvance += faseInfo ? (parseFloat(faseInfo.Avance) || 0) : 0;
+        const faseInfo = dashboardData.fases.find(f => {
+            const fCode = (f.ID_FASE_TRAMITE || f.CODIGO || f.Codigo || '').toString().trim();
+            return fCode === item.Fase_del_Tramite;
+        });
+        const avance = faseInfo ? (parseFloat(faseInfo.PORCENTAJE_FASE || faseInfo.Avance) || 0) : 0;
+        typeProgress[tipo].totalAdvance += avance;
     });
 
     Object.entries(typeProgress).forEach(([code, data]) => {
@@ -728,7 +904,10 @@ function renderTipoPage() {
     const { fases, tiempos } = dashboardData;
 
     const typePhaseCount = {};
-    fases.forEach(f => { typePhaseCount[f.Tipo] = (typePhaseCount[f.Tipo] || 0) + 1; });
+    fases.forEach(f => { 
+        const type = f.TT || f.TIPO || f.Tipo || '';
+        typePhaseCount[type] = (typePhaseCount[type] || 0) + 1; 
+    });
 
     const typeTramiteCount = {};
     intake.forEach(item => {
@@ -793,7 +972,7 @@ function renderTipoPage() {
                         <td><span class="code-badge" style="background:${TYPE_COLORS[code]}">${code}</span></td>
                         <td style="font-weight:600;color:#1A3C6E" title="${item.Name || ''}">${(item.Name || name).substring(0, 30)}</td>
                         <td style="text-align:center">${phaseCount}</td>
-                        <td><span class="phase-pill" style="background:#E3F2FD;color:#1565C0">${faseActual}</span></td>
+                        <td><span class="phase-pill" style="background:#E3F2FD;color:#1565C0">${getFaseName(faseActual)}</span></td>
                         <td title="${item.Responsible || ''}" style="font-size:11px">${responsable}</td>
                         <td><span class="status-pill" style="background:${cfg.bg};color:${cfg.color}">${cfg.label}</span></td>
                     </tr>
@@ -858,14 +1037,15 @@ function renderDetallePage(tramiteId) {
     const typeCode = extractTipo(faseActual);
     const name = TYPE_NAMES[typeCode] || typeCode;
     const color = TYPE_COLORS[typeCode] || '#888';
-    const typeFases = fases.filter(f => f.Tipo === typeCode).sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+    const typeFases = fases.filter(f => (f.TT || f.TIPO || f.Tipo) === typeCode)
+        .sort((a, b) => (parseFloat(a.ORDEN || a.Orden) || 0) - (parseFloat(b.ORDEN || b.Orden) || 0));
     const tramiteTiempos = tiempos.filter(t => t.id_tramite === tramiteId);
 
     // Header
     document.getElementById('detail-code').textContent = typeCode;
     document.getElementById('detail-code').style.background = color;
     document.getElementById('detail-name').textContent = item.Name || name;
-    document.getElementById('detail-phase').textContent = `Fase Actual: ${faseActual}`;
+    document.getElementById('detail-phase').textContent = `Fase Actual: ${getFaseName(faseActual)}`;
 
     const estado = getEstadoTramite(item, tiempos);
     const cfg = ESTADO_CONFIG[estado] || ESTADO_CONFIG['iniciado'];
@@ -875,13 +1055,13 @@ function renderDetallePage(tramiteId) {
     statusEl.style.color = cfg.color;
 
     // Determine phase statuses
-    const currentFaseOrden = typeFases.findIndex(f => f.Codigo === faseActual);
+    const currentFaseOrden = typeFases.findIndex(f => (f.ID_FASE_TRAMITE || f.CODIGO || f.Codigo) === faseActual);
     let completedCount = 0;
     let inProgressCount = 0;
     let pendingCount = 0;
 
     const phaseStatuses = typeFases.map((fase, idx) => {
-        const faseCode = fase.Codigo;
+        const faseCode = fase.ID_FASE_TRAMITE || fase.CODIGO || fase.Codigo;
         const tiempoData = tramiteTiempos.find(t => t.fase === faseCode);
 
         let status = 'pending';
@@ -921,8 +1101,8 @@ function renderDetallePage(tramiteId) {
     phasesContainer.innerHTML = '';
 
     phaseStatuses.forEach((fase) => {
-        const faseCode = fase.Codigo;
-        const faseName = fase.Nombre_Fase || faseCode;
+        const faseCode = fase.ID_FASE_TRAMITE || fase.CODIGO || fase.Codigo;
+        const faseName = fase.NOMBRE_FASE || fase.Nombre_Fase || faseCode;
         const isActive = fase.status === 'in-progress' ? 'active' : '';
         const isPending = fase.status === 'pending' ? 'pending-phase' : '';
 
@@ -932,7 +1112,7 @@ function renderDetallePage(tramiteId) {
                     ${fase.status === 'completed' ? '<i class="lucide lucide-check"></i>' : ''}
                 </div>
                 <div class="phase-info">
-                    <div class="phase-name">${faseCode}: ${faseName}</div>
+                    <div class="phase-name">${faseName}</div>
                     <div class="phase-desc ${fase.status}">${fase.dateText}</div>
                 </div>
                 <span class="phase-status ${fase.status}">
