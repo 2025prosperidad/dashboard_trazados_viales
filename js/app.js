@@ -54,6 +54,20 @@ const ESTADO_CONFIG = {
 };
 
 /* ==========================================
+   GEOGRAPHICAL MAP
+   ========================================== */
+const CANTON_PARROQUIA_MAP = {
+    "QUITO": ["BELISARIO QUEVEDO", "CARCELÉN", "CENTRO HISTÓRICO", "COCHAPAMBA", "COMITÉ DEL PUEBLO", "COTOCOLLAO", "CHILIBULO", "CHILLOGALLO", "CHIMBACALLE", "EL CONDADO", "GUAMANÍ", "IÑAQUITO", "ITCHIMBIA", "JIPIJAPA", "KENNEDY", "LA ARGELIA", "LA CONCEPCIÓN", "LA ECUATORIANA", "LA FERROVIARIA", "LA LIBERTAD", "LA MAGDALENA", "LA MENA", "MARISCAL SUCRE", "PONCEANO", "PUENGASÍ", "QUITUMBE", "RUMIPAMBA", "SAN BARTOLO", "SAN ISIDRO DEL INCA", "SAN JUAN", "SOLANDA", "TURUBAMBA", "ALANGASÍ", "AMAGUAÑA", "ATAHUALPA", "CALACALÍ", "CALDERÓN", "CONOCOTO", "CUMBAYÁ", "CHAVEZPAMBA", "CHECA", "EL QUINCHE", "GUALEA", "GUANGOPOLO", "GUAYLLABAMBA", "LA MERCED", "LLANO CHICO", "LLOA", "NANEGAL", "NANEGALITO", "NAYÓN", "NONO", "PACTO", "PERUCHO", "PIFO", "PÍNTAG", "POMASQUI", "PUÉLLARO", "PUEMBO", "SAN ANTONIO", "SAN JOSÉ DE MINAS", "TABABELA", "TUMBACO", "YARUQUÍ", "ZÁMBIZA"],
+    "CAYAMBE": ["CAYAMBE", "JUAN MONTALVO", "ASCÁZUBI", "CANGAHUA", "OLMEDO", "OTÓN", "SANTA ROSA DE CUZUBAMBA", "SAN JOSÉ DE AYORA"],
+    "MEJIA": ["MACHACHI", "ALOAG", "ALOASÍ", "CUTUGLAHUA", "EL CHAUPI", "MANUEL CORNEJO ASTORGA", "TAMBILLO", "UYUMBICHO"],
+    "PEDRO MONCAYO": ["TABACUNDO", "LA ESPERANZA", "MALCHINGUÍ", "TOCACHI", "TUPIGACHI"],
+    "RUMIÑAHUI": ["SANGOLQUÍ", "SAN PEDRO DE TABOADA", "SAN RAFAEL", "FAJARDO", "COTOGCHOA", "RUMIPAMBA"],
+    "SAN MIGUEL DE LOS BANCOS": ["SAN MIGUEL DE LOS BANCOS", "MINDO"],
+    "PEDRO VICENTE MALDONADO": ["PEDRO VICENTE MALDONADO"],
+    "PUERTO QUITO": ["PUERTO QUITO"]
+};
+
+/* ==========================================
    HELPERS
    ========================================== */
 function extractTipo(faseCode) {
@@ -284,21 +298,35 @@ function buildFilters() {
         cantonSelect.value = filtroCanton;
     }
 
+    // Filtrar parroquias según el cantón seleccionado
+    let parroquiasFiltradas = parroquiasUnicas;
+    if (filtroCanton !== 'Todos') {
+        const permitidas = CANTON_PARROQUIA_MAP[filtroCanton] || [];
+        parroquiasFiltradas = parroquiasUnicas.filter(p => permitidas.includes(p));
+    }
+
     // Populate Parroquia filter
     const parroquiaSelect = document.getElementById('filtro-parroquia');
     if (parroquiaSelect) {
         parroquiaSelect.innerHTML = '<option value="Todos">Todas</option>';
-        parroquiasUnicas.forEach(p => {
+        parroquiasFiltradas.forEach(p => {
             parroquiaSelect.innerHTML += `<option value="${p}">${p}</option>`;
         });
-        parroquiaSelect.value = filtroParroquia;
+        
+        // Si la parroquia seleccionada ya no esta en la lista filtrada, volver a 'Todos'
+        if (filtroParroquia !== 'Todos' && !parroquiasFiltradas.includes(filtroParroquia)) {
+            filtroParroquia = 'Todos';
+            parroquiaSelect.value = 'Todos';
+        } else {
+            parroquiaSelect.value = filtroParroquia;
+        }
     }
 
     // Sync mobile filter dropdowns
-    syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso, cantonesUnicos, parroquiasUnicas);
+    syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso, cantonesUnicos, parroquiasFiltradas);
 }
 
-function syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso, cantonesUnicos, parroquiasUnicas) {
+function syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso, cantonesUnicos, parroquiasFiltradas) {
     // Mobile Tipo
     const tipoMobile = document.getElementById('filtro-tipo-mobile');
     if (tipoMobile) {
@@ -346,7 +374,7 @@ function syncMobileFilters(tiposUnicos, fasesUnicas, emailsEnUso, cantonesUnicos
     const parroquiaMobile = document.getElementById('filtro-parroquia-mobile');
     if (parroquiaMobile) {
         parroquiaMobile.innerHTML = '<option value="Todos">Todas</option>';
-        parroquiasUnicas.forEach(p => {
+        parroquiasFiltradas.forEach(p => {
             parroquiaMobile.innerHTML += `<option value="${p}">${p}</option>`;
         });
         parroquiaMobile.value = filtroParroquia;
