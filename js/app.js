@@ -226,6 +226,7 @@ function buildFilters() {
         tiposUnicos.forEach(t => {
             tipoSelect.innerHTML += `<option value="${t}">${t} - ${TYPE_NAMES[t] || t}</option>`;
         });
+        tipoSelect.value = filtroTipo;
     }
 
     // Populate Fase filter
@@ -270,6 +271,7 @@ function buildFilters() {
             const name = getUserNameShort(email);
             userSelect.innerHTML += `<option value="${email}">${name}</option>`;
         });
+        userSelect.value = filtroUsuario;
     }
 
     // Populate Cantón filter
@@ -279,6 +281,7 @@ function buildFilters() {
         cantonesUnicos.forEach(c => {
             cantonSelect.innerHTML += `<option value="${c}">${c}</option>`;
         });
+        cantonSelect.value = filtroCanton;
     }
 
     // Populate Parroquia filter
@@ -288,6 +291,7 @@ function buildFilters() {
         parroquiasUnicas.forEach(p => {
             parroquiaSelect.innerHTML += `<option value="${p}">${p}</option>`;
         });
+        parroquiaSelect.value = filtroParroquia;
     }
 
     // Sync mobile filter dropdowns
