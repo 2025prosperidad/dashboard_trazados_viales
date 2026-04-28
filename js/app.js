@@ -240,13 +240,115 @@ function extractTipo(faseCode) {
     return faseCode.replace(/-\d+.*$/, '');
 }
 
+/**
+ * Fecha de Vencimiento Real del trámite. Sincronizada desde AppSheet ("Vencimiento tramite")
+ * a la columna Result (BA) por el Apps Script. Cae a "Due date" o aliases solo si Result está vacío
+ * (para registros antiguos no migrados).
+ */
+function vencimientoRealFromItem_(item) {
+    if (!item || typeof item !== 'object') return null;
+    const candidates = ['Result', 'RESULT', 'result', 'Due date', 'Due Date', 'DUE DATE', 'Vencimiento tramite', 'Vencimiento Tramite'];
+    for (const name of candidates) {
+        const want = name.trim().toLowerCase().replace(/\s+/g, '_');
+        const hit = Object.keys(item).find(k => k.trim().toLowerCase().replace(/\s+/g, '_') === want);
+        if (hit) {
+            const v = item[hit];
+            if (v !== undefined && v !== null && String(v).trim() !== '') {
+                const d = parseDateOnly(v);
+                if (d) return d;
+            }
+        }
+    }
+    return null;
+}
+const dueDateFromItem_ = vencimientoRealFromItem_;
+
+function complianceDateFromItem_(item) {
+    if (!item || typeof item !== 'object') return null;
+    return parseDateOnly(item['Compliance date'] || '');
+}
+
+function startDateFromItem_(item) {
+    if (!item || typeof item !== 'object') return null;
+    return parseDateOnly(item['Start date'] || '');
+}
+
+function todayMid_() {
+    const n = new Date();
+    n.setHours(0, 0, 0, 0);
+    return n;
+}
+
+/**
+ * Para un trámite, calcula días en proceso, días detenido y estado por fechas.
+ * Reglas (acordadas con el negocio):
+ *   - Finalizado: Compliance date está informada → diasEnProceso = Compliance − Start; diasDetenido = 0.
+ *   - En proceso: Compliance vacío Y today ≤ Vencimiento Real → diasEnProceso = today − Start; diasDetenido = 0.
+ *   - Detenido: Compliance vacío Y today > Vencimiento Real → diasEnProceso = Vencimiento Real − Start;
+ *     diasDetenido = today − Vencimiento Real.
+ *   - Si no hay Vencimiento Real (raro), se asume en proceso con diasEnProceso = today − Start.
+ *   - Si no hay Start date, no se puede calcular: devuelve nulls.
+ */
+function calcularDiasProcesoDetenidoTramite(item) {
+    const out = { diasEnProceso: null, diasDetenido: null, estadoFecha: null };
+    const start = startDateFromItem_(item);
+    if (!start) return out;
+    const compliance = complianceDateFromItem_(item);
+    const venc = vencimientoRealFromItem_(item);
+    const today = todayMid_();
+    const dDays = (a, b) => Math.max(0, Math.floor((a.getTime() - b.getTime()) / 86400000));
+
+    if (compliance) {
+        return { diasEnProceso: dDays(compliance, start), diasDetenido: 0, estadoFecha: 'finalizado' };
+    }
+    if (!venc) {
+        return { diasEnProceso: dDays(today, start), diasDetenido: 0, estadoFecha: 'en_proceso' };
+    }
+    if (today.getTime() <= venc.getTime()) {
+        return { diasEnProceso: dDays(today, start), diasDetenido: 0, estadoFecha: 'en_proceso' };
+    }
+    return { diasEnProceso: dDays(venc, start), diasDetenido: dDays(today, venc), estadoFecha: 'detenido' };
+}
+
+/**
+ * true = today > Vencimiento Real (plazo vencido). false = todavía dentro. null = sin fecha.
+ * Mantenido por compatibilidad con código existente en otras pestañas.
+ */
+function vencimientoSuperado_(item) {
+    const venc = vencimientoRealFromItem_(item);
+    if (!venc) return null;
+    const c = complianceDateFromItem_(item);
+    const ref = c || todayMid_();
+    return ref.getTime() > venc.getTime();
+}
+
+/**
+ * Clasificador de estado para la pestaña Productividad.
+ * - Estados especiales de AppSheet (archivado / derivación / solicitud info) prevalecen del texto.
+ * - Para el resto se usa exclusivamente la lógica de fechas (Compliance / Result / today vs Start).
+ */
+function getEstadoTramiteProductividad(item) {
+    const estadoRaw = (item.ESTADO_ACTUAL || item.Estado || '').toLowerCase().trim();
+    if (estadoRaw.includes('archivado') || item.Archivado) return 'archivado';
+    if (estadoRaw.includes('derivaci') || estadoRaw.includes('derivad')) return 'en_derivacion';
+    if (estadoRaw.includes('solicitud') || estadoRaw.includes('informaci')) return 'solicitud_info';
+    const r = calcularDiasProcesoDetenidoTramite(item);
+    return r.estadoFecha || 'en_proceso';
+}
+
 function getEstadoTramite(item, tiempos) {
     // ESTADO_ACTUAL (sincronizado desde AppSheet via Apps Script) tiene prioridad;
     // si aún está vacío, se cae al campo Estado original como respaldo.
     const estadoRaw = (item.ESTADO_ACTUAL || item.Estado || '').toLowerCase().trim();
     if (estadoRaw.includes('archivado') || item.Archivado) return 'archivado';
     if (estadoRaw.includes('derivaci') || estadoRaw.includes('derivad')) return 'en_derivacion';
-    if (estadoRaw.includes('detenid')) return 'detenido';
+    // Detenido solo si el estado lo indica Y ya venció el Due date; si no, cuenta como en proceso.
+    if (estadoRaw.includes('detenid')) {
+        const sup = vencimientoSuperado_(item);
+        if (sup === true) return 'detenido';
+        if (sup === false) return 'en_proceso';
+        return 'detenido';
+    }
     if (estadoRaw.includes('solicitud') || estadoRaw.includes('informaci')) return 'solicitud_info';
     if (estadoRaw.includes('finaliz') || estadoRaw.includes('complet')) return 'finalizado';
     if (estadoRaw.includes('proceso') || estadoRaw.includes('progreso')) return 'en_proceso';
@@ -1364,12 +1466,23 @@ function renderProductividadPage() {
         total: 0, totalDias: 0, dexDias: 0,
         byEstado: Object.fromEntries(ESTADOS_PROD.map(e => [e, { d: 0, c: 0 }]))
     });
+    // ── Productividad: clasificación y tiempos por fechas (Start, Result, Compliance, today) ──
+    const tramiteEstadoProd = {};
+    const tramiteDiasEnProceso = {};
+    const tramiteDiasDetenido = {};
+    intake.forEach(item => {
+        const r = calcularDiasProcesoDetenidoTramite(item);
+        tramiteEstadoProd[item.id] = getEstadoTramiteProductividad(item);
+        tramiteDiasEnProceso[item.id] = r.diasEnProceso == null ? 0 : r.diasEnProceso;
+        tramiteDiasDetenido[item.id] = r.diasDetenido == null ? 0 : r.diasDetenido;
+    });
+
     const respByTipo = {};
     intake.forEach(item => {
         const tipo = extractTipo(item.Fase_del_Tramite);
         if (!tipo) return;
         const resp = item.Responsible || 'Sin asignar';
-        const estado = getEstadoTramite(item, tiempos);
+        const estado = tramiteEstadoProd[item.id];
         if (!respByTipo[tipo]) respByTipo[tipo] = {};
         if (!respByTipo[tipo][resp]) respByTipo[tipo][resp] = newProdBucket();
         const dias = tramiteDias[item.id] || 0;
@@ -1386,7 +1499,7 @@ function renderProductividadPage() {
         const el = document.getElementById(id);
         if (el) el.textContent = prodRangeCaption;
     });
-    const finEnFiltro = intake.filter(i => getEstadoTramite(i, tiempos) === 'finalizado').length;
+    const finEnFiltro = intake.filter(i => tramiteEstadoProd[i.id] === 'finalizado').length;
     const capFin = document.getElementById('prod-finalizados-caption');
     if (capFin) {
         capFin.textContent =
@@ -1397,7 +1510,7 @@ function renderProductividadPage() {
     // ── Scorecards por estado (mismo estilo que Ranking) ──
     const estadoCountsProd = {};
     intake.forEach(item => {
-        const estado = getEstadoTramite(item, tiempos);
+        const estado = tramiteEstadoProd[item.id];
         estadoCountsProd[estado] = (estadoCountsProd[estado] || 0) + 1;
     });
     const prodEstadoContainer = document.getElementById('prod-estado-badges');
@@ -1439,7 +1552,7 @@ function renderProductividadPage() {
         intake.forEach(item => {
             const tipo = extractTipo(item.Fase_del_Tramite);
             if (!tipo) return;
-            if (getEstadoTramite(item, tiempos) !== 'finalizado') return;
+            if (tramiteEstadoProd[item.id] !== 'finalizado') return;
             if (!agg[tipo]) agg[tipo] = { n: 0, sumFases: 0, sumDex: 0, sumEstados: 0 };
             agg[tipo].n++;
             agg[tipo].sumFases += (tramiteDias[item.id] || 0);
@@ -1796,7 +1909,7 @@ function renderProductividadPage() {
     const sinTipo = {};
     intake.filter(i => !extractTipo(i.Fase_del_Tramite)).forEach(item => {
         const resp = item.Responsible || 'Sin asignar';
-        const estado = getEstadoTramite(item, tiempos);
+        const estado = tramiteEstadoProd[item.id];
         if (!sinTipo[resp]) sinTipo[resp] = newProdBucket();
         const dias = tramiteDias[item.id] || 0;
         sinTipo[resp].total++;
@@ -1876,31 +1989,54 @@ function renderProductividadPage() {
         });
     })();
 
-    // ── Chart: Tiempo Promedio por Estado (ESTADO_ACTUAL) ──────────────
+    // ── Chart: Tiempo Promedio por Estado (clasificación por fechas) ──
+    // Reglas:
+    //   En proceso → días desde Start hasta hoy (Compliance vacío y today ≤ Vencimiento Real)
+    //   Detenido   → días desde Vencimiento Real hasta hoy (Compliance vacío y today > Vencimiento Real)
+    //   Finalizado → días desde Start hasta Compliance date
+    //   Otros estados (derivación, solicitud info, archivado) → Start → (Compliance | hoy)
     (function renderProdEstadoDuracionChart() {
-        // Días "vividos" por cada trámite: desde Start date hasta Compliance date (si existe) o hasta hoy.
-        const diasVivos = (i) => {
-            const ini = parseDateOnly(i['Start date']);
+        const nowMid = todayMid_();
+        const fallbackStartHoy = (i) => {
+            const ini = startDateFromItem_(i);
             if (!ini) return null;
-            const fin = parseDateOnly(i['Compliance date']) || now;
-            return Math.max(0, Math.floor((fin - ini) / 86400000));
+            const ref = complianceDateFromItem_(i) || nowMid;
+            return Math.max(0, Math.floor((ref - ini) / 86400000));
+        };
+
+        const diasMetricaEstado = (i, estadoKey) => {
+            if (estadoKey === 'en_proceso' || estadoKey === 'detenido' || estadoKey === 'finalizado') {
+                if (estadoKey === 'detenido') {
+                    const v = tramiteDiasDetenido[i.id];
+                    return v == null ? null : v;
+                }
+                const v = tramiteDiasEnProceso[i.id];
+                return v == null ? null : v;
+            }
+            return fallbackStartHoy(i);
         };
 
         const agg = {};
         intake.forEach(i => {
-            const key = getEstadoTramite(i, tiempos);
-            const d = diasVivos(i);
+            const key = tramiteEstadoProd[i.id];
+            const d = diasMetricaEstado(i, key);
             if (d === null) return;
             if (!agg[key]) agg[key] = { sum: 0, count: 0 };
             agg[key].sum += d;
             agg[key].count++;
         });
 
+        const labelByEstado = {
+            en_proceso: 'En proceso (Start → hoy)',
+            detenido: 'Detenido (Venc. real → hoy)',
+            finalizado: 'Finalizado (Start → Compliance)'
+        };
         const rows = EXEC_STATE_SEGMENTS
             .map(s => {
                 const a = agg[s.key];
                 return {
-                    label: s.label,
+                    key: s.key,
+                    label: labelByEstado[s.key] || s.label,
                     color: s.color,
                     avg: a && a.count > 0 ? Math.round(a.sum / a.count) : 0,
                     count: a ? a.count : 0
@@ -1935,7 +2071,14 @@ function renderProductividadPage() {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: c => ` ${c.parsed.x.toLocaleString()} días (promedio · ${rows[c.dataIndex].count} trámites)`
+                            label: c => {
+                                const r = rows[c.dataIndex];
+                                let detail = '';
+                                if (r.key === 'detenido') detail = ' (días vencido tras la fecha de vencimiento real)';
+                                else if (r.key === 'en_proceso') detail = ' (días dentro del plazo, hasta hoy)';
+                                else if (r.key === 'finalizado') detail = ' (días desde Start hasta Compliance)';
+                                return ` ${r.avg.toLocaleString()} días promedio · ${r.count} trámites${detail}`;
+                            }
                         }
                     }
                 },

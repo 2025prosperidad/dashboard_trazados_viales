@@ -1,6 +1,9 @@
 /**
- * Sincroniza la columna Status de AppSheet (tabla Intake_form) hacia ESTADO_ACTUAL
- * en Google Sheets, vía API v2 de AppSheet.
+ * Sincroniza desde AppSheet (tabla Intake_form) hacia Google Sheets:
+ *   - Status          → columna ESTADO_ACTUAL
+ *   - Vencimiento tramite → columna Result (fecha de vencimiento calculada en AppSheet)
+ *
+ * vía API v2 de AppSheet.
  *
  * Por qué a veces ves "402 filas de AppSheet" pero "153 actualizadas":
  *
@@ -35,21 +38,47 @@ const CONFIG = {
    * de script APP_SHEET_APPLICATION_ACCESS_KEY (Proyecto → engrane → Propiedades del script)
    * para no guardar secretos en texto plano si compartes el código.
    */
-  APPLICATION_ACCESS_KEY: '',
+  APPLICATION_ACCESS_KEY: 'V2-Apiej-rRDMg-NpGts-ivTwB-ZAu8y-BkCQx-KGmln-xvdGb',
   /** Dominio según tu cuenta (global: www.appsheet.com; EU: eu.appsheet.com; etc.) */
   REGION_HOST: 'www.appsheet.com',
   /** Nombre exacto de la tabla en AppSheet (URL-encoded si tiene espacios) */
   TABLE_NAME: 'Intake_form',
   /** Columna en AppSheet que trae el estado (nombre exacto) */
   COLUMNA_STATUS_APPSHEET: 'Status',
+  /**
+   * Columna en AppSheet con la fecha de vencimiento del trámite (Virtual / fórmula en AppSheet).
+   * Debe coincidir con el nombre en Data → Columns.
+   */
+  COLUMNA_VENCIMIENTO_APPSHEET: 'Vencimiento tramite',
+  /** Alias por si el nombre en la app difiere ligeramente */
+  COLUMNA_VENCIMIENTO_APPSHEET_ALIASES: ['Vencimiento tramite', 'Vencimiento_tramite', 'Vencimiento Tramite'],
   /** ID de la hoja de Google (entre /d/ y /edit en la URL) */
   SPREADSHEET_ID: '1LaATbQJpXc7iA-BHh5ZWx41bB_T0UwpyOH8eTDyXo_o',
   /** Nombre de la pestaña donde está Intake_form */
   NOMBRE_HOJA: 'Intake_form',
-  /** Letra de la columna que es CLAVE para alinear con AppSheet (misma que en el dashboard, p. ej. "id") */
-  COLUMNA_ID_EN_HOJA: 'A',
-  /** Letra de la columna ESTADO_ACTUAL en la hoja */
-  COLUMNA_ESTADO_EN_HOJA: 'B',
+  /**
+   * Nombre del encabezado de la columna CLAVE (debe existir en la fila FILA_ENCABEZADO).
+   * Se acepta una lista de alias; se usa el primero que encuentre en la hoja.
+   */
+  NOMBRES_ENCABEZADO_ID: ['id', 'ID', 'Id'],
+  /**
+   * Nombre del encabezado de la columna donde se escribe el estado.
+   */
+  NOMBRES_ENCABEZADO_ESTADO: ['ESTADO_ACTUAL', 'Estado_Actual', 'estado_actual'],
+  /** Columna en la hoja donde se escribe la fecha de vencimiento (mismo valor que en AppSheet) */
+  NOMBRES_ENCABEZADO_RESULT: ['Result', 'RESULT', 'result'],
+  /**
+   * Columnas permitidas de escritura (bloqueadas por seguridad):
+   * - ESTADO_ACTUAL -> CE
+   * - Result        -> BA
+   * El script no debe escribir en ninguna otra columna.
+   */
+  COLUMNA_ESTADO_OBJETIVO: 'CE',
+  COLUMNA_RESULT_OBJETIVO: 'BA',
+  /**
+   * Columna de lectura del ID. Esta no se escribe; se usa solo para empatar filas.
+   */
+  COLUMNA_ID_EN_HOJA_FALLBACK: 'A',
   /** Fila donde empiezan los datos (1 = cabecera en fila 1) */
   FILA_ENCABEZADO: 1,
 
@@ -204,6 +233,15 @@ function fetchRowsFromAppSheet_() {
         hint =
           ' Parece que APP_ID sigue siendo de ejemplo; reemplázalo por el App ID real en CONFIG.';
       }
+      if (
+        res.text.indexOf('Bandwidth quota exceeded') !== -1 ||
+        res.text.indexOf('quota exceeded') !== -1
+      ) {
+        hint =
+          ' Superaste el cupo de la API de AppSheet (ancho de banda). Reduce la frecuencia del disparador ' +
+          '(usa configurarTriggerCada5Min o configurarTriggerCada10Min) y/o revisa el plan de AppSheet. ' +
+          'El cupo se reinicia con el tiempo; espera unas horas y vuelve a probar.';
+      }
       throw new Error('AppSheet HTTP ' + res.code + ': ' + res.text.slice(0, 500) + hint);
     }
 
@@ -238,41 +276,178 @@ function fetchRowsFromAppSheet_() {
 }
 
 /**
- * Construye Mapa id -> Status (string).
- * AppSheet puede usar distintos nombres de clave: ajusta las claves probadas.
+ * Extrae id de fila AppSheet (misma lógica que el mapa de estado).
  */
-function mapStatusById_(appRows) {
-  const map = {};
-  const statusKey = CONFIG.COLUMNA_STATUS_APPSHEET;
-
-  appRows.forEach(function (row) {
-    const id =
-      row.id != null && row.id !== ''
-        ? String(row.id).trim()
-        : row.ID != null && row.ID !== ''
-          ? String(row.ID).trim()
-          : row._RowNumber != null
-            ? String(row._RowNumber).trim()
-            : '';
-
-    if (!id) return;
-
-    const st = row[statusKey];
-    map[id] = st == null ? '' : String(st).trim();
-  });
-
-  return map;
+function intakeRowId_(row) {
+  if (row.id != null && row.id !== '') return String(row.id).trim();
+  if (row.ID != null && row.ID !== '') return String(row.ID).trim();
+  if (row._RowNumber != null) return String(row._RowNumber).trim();
+  return '';
 }
 
 /**
- * Sincronización principal: lee AppSheet, recorre la hoja por ID y escribe ESTADO_ACTUAL.
+ * Primer valor no vacío de la fila para una lista de nombres de columna AppSheet.
+ */
+function rowValueFirstKey_(row, keyNames) {
+  for (let i = 0; i < keyNames.length; i++) {
+    const k = keyNames[i];
+    if (!k || !Object.prototype.hasOwnProperty.call(row, k)) continue;
+    const v = row[k];
+    if (v != null && String(v).trim() !== '') return v;
+  }
+  for (let j = 0; j < keyNames.length; j++) {
+    const k2 = keyNames[j];
+    if (k2 && Object.prototype.hasOwnProperty.call(row, k2)) return row[k2];
+  }
+  return null;
+}
+
+/**
+ * Convierte el valor de "Vencimiento tramite" de AppSheet a algo que Sheets entienda como fecha.
+ * Vacío → '' (celda en blanco).
+ */
+function parseVencimientoForSheetCell_(raw) {
+  if (raw == null || raw === '') return '';
+  if (Object.prototype.toString.call(raw) === '[object Date]' && !isNaN(raw.getTime())) return raw;
+  if (typeof raw === 'number' && raw > 20000 && raw < 80000) {
+    return new Date((raw - 25569) * 86400 * 1000);
+  }
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) return d;
+  return String(raw).trim();
+}
+
+function dueCellsContentEqual_(a, b) {
+  const na = normalizeDueForCompareDay_(a);
+  const nb = normalizeDueForCompareDay_(b);
+  return na === nb;
+}
+
+/** Misma fecha calendario (zona del script) → evita reescribir por desfase UTC vs celda. */
+function normalizeDueForCompareDay_(v) {
+  if (v == null || v === '') return '';
+  const d = Object.prototype.toString.call(v) === '[object Date]' ? v : new Date(v);
+  if (isNaN(d.getTime())) return String(v).trim();
+  const tz = Session.getScriptTimeZone() || 'America/Guayaquil';
+  return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+}
+
+/**
+ * Mapas id -> Status (string) e id -> valor bruto de vencimiento (luego parseVencimientoForSheetCell_).
+ */
+function mapStatusAndVencimientoById_(appRows) {
+  const statusById = {};
+  const vencimientoById = {};
+  const statusKey = CONFIG.COLUMNA_STATUS_APPSHEET;
+  const venKeys = [];
+  const mainVen = (CONFIG.COLUMNA_VENCIMIENTO_APPSHEET || '').trim();
+  if (mainVen) venKeys.push(mainVen);
+  (CONFIG.COLUMNA_VENCIMIENTO_APPSHEET_ALIASES || []).forEach(function (a) {
+    const t = String(a || '').trim();
+    if (t && venKeys.indexOf(t) === -1) venKeys.push(t);
+  });
+
+  appRows.forEach(function (row) {
+    const id = intakeRowId_(row);
+    if (!id) return;
+
+    const st = row[statusKey];
+    statusById[id] = st == null ? '' : String(st).trim();
+
+    const rawVen = rowValueFirstKey_(row, venKeys);
+    vencimientoById[id] = rawVen;
+  });
+
+  return { statusById: statusById, vencimientoById: vencimientoById };
+}
+
+/**
+ * Convierte un índice de columna 1-based a letra (1=A, 2=B, 27=AA, ...).
+ */
+function columnIndexToLetter_(idx) {
+  let s = '';
+  let n = idx;
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+/**
+ * Busca la columna cuyo encabezado (fila CONFIG.FILA_ENCABEZADO) coincida con alguno
+ * de los nombres aceptados (case-insensitive, sin espacios). Devuelve la LETRA o null.
+ */
+function findColumnLetterByHeader_(sheet, headerNames) {
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return null;
+  const headers = sheet
+    .getRange(CONFIG.FILA_ENCABEZADO, 1, 1, lastCol)
+    .getValues()[0];
+  const normalized = headerNames.map(function (n) {
+    return String(n || '').trim().toLowerCase();
+  });
+  for (let i = 0; i < headers.length; i++) {
+    const h = String(headers[i] || '').trim().toLowerCase();
+    if (!h) continue;
+    if (normalized.indexOf(h) !== -1) {
+      return columnIndexToLetter_(i + 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * Resuelve las letras de columnas para ID, ESTADO y Result.
+ * Escritura bloqueada por seguridad:
+ *   - ESTADO_ACTUAL siempre en CONFIG.COLUMNA_ESTADO_OBJETIVO (CE)
+ *   - Result siempre en CONFIG.COLUMNA_RESULT_OBJETIVO (BA)
+ * No se usa detección automática para columnas de escritura.
+ */
+function resolveColumnLetters_(sheet) {
+  const idFromHeader = findColumnLetterByHeader_(sheet, CONFIG.NOMBRES_ENCABEZADO_ID || []);
+
+  const idLetter = idFromHeader || CONFIG.COLUMNA_ID_EN_HOJA_FALLBACK;
+  const estadoLetter = (CONFIG.COLUMNA_ESTADO_OBJETIVO || '').trim();
+  const resultLetter = (CONFIG.COLUMNA_RESULT_OBJETIVO || '').trim();
+
+  if (!idFromHeader) {
+    Logger.log(
+      '⚠ No encontré la columna ID por encabezado (' +
+        (CONFIG.NOMBRES_ENCABEZADO_ID || []).join(', ') +
+        '). Uso fallback ' +
+        CONFIG.COLUMNA_ID_EN_HOJA_FALLBACK +
+        '.'
+    );
+  } else {
+    Logger.log('Columna ID detectada por encabezado: ' + idLetter);
+  }
+
+  if (!estadoLetter) {
+    throw new Error('CONFIG.COLUMNA_ESTADO_OBJETIVO está vacía. Debe ser CE.');
+  }
+  Logger.log('Columna ESTADO_ACTUAL bloqueada por configuración: ' + estadoLetter);
+
+  if (!resultLetter) {
+    throw new Error('CONFIG.COLUMNA_RESULT_OBJETIVO está vacía. Debe ser BA.');
+  }
+  Logger.log('Columna Result bloqueada por configuración: ' + resultLetter);
+
+  return { idLetter: idLetter, estadoLetter: estadoLetter, resultLetter: resultLetter };
+}
+
+/**
+ * Sincronización principal: lee AppSheet, recorre la hoja por ID y escribe ESTADO_ACTUAL y Result.
  */
 function syncEstadoDesdeAppSheet() {
   assertConfigFilled_();
   const appRows = fetchRowsFromAppSheet_();
   Logger.log('Filas en response.Rows (AppSheet): ' + appRows.length);
 
-  const statusById = mapStatusById_(appRows);
+  const maps = mapStatusAndVencimientoById_(appRows);
+  const statusById = maps.statusById;
+  const vencimientoById = maps.vencimientoById;
   Logger.log('IDs únicos con Status en mapa: ' + Object.keys(statusById).length);
 
   const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
@@ -285,33 +460,51 @@ function syncEstadoDesdeAppSheet() {
     return;
   }
 
+  const cols = resolveColumnLetters_(sh);
+  const idCol = cols.idLetter;
+  const estadoCol = cols.estadoLetter;
+  const resultCol = cols.resultLetter;
+
   const startRow = CONFIG.FILA_ENCABEZADO + 1;
   const numRows = lastRow - CONFIG.FILA_ENCABEZADO;
-  const idRange = sh.getRange(CONFIG.COLUMNA_ID_EN_HOJA + startRow + ':' + CONFIG.COLUMNA_ID_EN_HOJA + lastRow);
-  const estadoRange = sh.getRange(CONFIG.COLUMNA_ESTADO_EN_HOJA + startRow + ':' + CONFIG.COLUMNA_ESTADO_EN_HOJA + lastRow);
+  const idRange = sh.getRange(idCol + startRow + ':' + idCol + lastRow);
+  const estadoRange = sh.getRange(estadoCol + startRow + ':' + estadoCol + lastRow);
 
   const ids = idRange.getValues();
   const estadosActuales = estadoRange.getValues();
 
+  let resultRange = null;
+  let resultActuales = [];
+  if (resultCol) {
+    resultRange = sh.getRange(resultCol + startRow + ':' + resultCol + lastRow);
+    resultActuales = resultRange.getValues();
+  }
+
   let matched = 0;
   let written = 0;
   let unchanged = 0;
+  let writtenResult = 0;
+  let unchangedResult = 0;
   let notInAppSheet = 0;
   const out = [];
+  const outResult = [];
 
   for (let i = 0; i < numRows; i++) {
     const rawId = ids[i][0];
     const id = rawId == null || rawId === '' ? '' : String(rawId).trim();
     const prev = estadosActuales[i][0] == null ? '' : String(estadosActuales[i][0]).trim();
+    const prevResult = resultCol && resultActuales[i] ? resultActuales[i][0] : null;
 
     if (!id) {
       out.push([prev]);
+      if (resultCol) outResult.push([prevResult]);
       continue;
     }
 
     if (!Object.prototype.hasOwnProperty.call(statusById, id)) {
       notInAppSheet++;
       out.push([prev]);
+      if (resultCol) outResult.push([prevResult]);
       continue;
     }
 
@@ -324,14 +517,32 @@ function syncEstadoDesdeAppSheet() {
       unchanged++;
       out.push([prev]);
     }
+
+    if (resultCol) {
+      const rawVen = Object.prototype.hasOwnProperty.call(vencimientoById, id) ? vencimientoById[id] : null;
+      const nuevoResult = parseVencimientoForSheetCell_(rawVen);
+      if (dueCellsContentEqual_(prevResult, nuevoResult)) {
+        unchangedResult++;
+        outResult.push([prevResult]);
+      } else {
+        writtenResult++;
+        outResult.push([nuevoResult]);
+      }
+    }
   }
 
   estadoRange.setValues(out);
+  if (resultCol && resultRange && outResult.length === numRows) {
+    resultRange.setValues(outResult);
+  }
 
+  Logger.log(
+    'Columnas usadas → ID: ' + idCol + ' | ESTADO_ACTUAL: ' + estadoCol + (resultCol ? ' | Result: ' + resultCol : ' | Result: (omitido)')
+  );
   Logger.log('Filas en hoja (rango ID): ' + numRows);
   Logger.log('Coincidencias ID AppSheet↔hoja: ' + matched);
-  Logger.log('Celdas con valor distinto (escrituras): ' + written);
-  Logger.log('Sin cambio (ya igual): ' + unchanged);
+  Logger.log('ESTADO_ACTUAL — escrituras: ' + written + ' | sin cambio: ' + unchanged);
+  if (resultCol) Logger.log('Result — escrituras: ' + writtenResult + ' | sin cambio: ' + unchangedResult);
   Logger.log('ID en hoja sin match en AppSheet: ' + notInAppSheet);
 }
 
@@ -344,4 +555,42 @@ function syncEstadoDesdeAppSheet() {
  */
 function ejecutarSyncConDiagnostico() {
   syncEstadoDesdeAppSheet();
+}
+
+/**
+ * Helpers para (re)programar el disparador sin entrar a la UI.
+ * Ejecuta UNA vez la función deseada. Elimina cualquier disparador previo de
+ * syncEstadoDesdeAppSheet y crea uno nuevo con la frecuencia indicada.
+ *
+ * - configurarTriggerCada5Min: recomendado para tráfico normal.
+ * - configurarTriggerCada10Min: aún más conservador, ideal si ves errores de cuota.
+ * - eliminarTriggers: borra todos los disparadores de la función (útil al depurar).
+ */
+function configurarTriggerCada5Min() {
+  reemplazarTriggerMinutos_(5);
+}
+
+function configurarTriggerCada10Min() {
+  reemplazarTriggerMinutos_(10);
+}
+
+function eliminarTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let removed = 0;
+  triggers.forEach(function (t) {
+    if (t.getHandlerFunction() === 'syncEstadoDesdeAppSheet') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+  Logger.log('Disparadores eliminados: ' + removed);
+}
+
+function reemplazarTriggerMinutos_(minutos) {
+  eliminarTriggers();
+  ScriptApp.newTrigger('syncEstadoDesdeAppSheet')
+    .timeBased()
+    .everyMinutes(minutos)
+    .create();
+  Logger.log('✓ Disparador creado: syncEstadoDesdeAppSheet cada ' + minutos + ' minutos.');
 }
