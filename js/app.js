@@ -1452,6 +1452,17 @@ function renderProductividadPage() {
             tramiteDexDias[item.id] = 0;
         }
     });
+    // ── Días DEX→Cumplimiento por trámite (Fecha_Sol_Oficio → Compliance date) ──
+    const tramiteDexCumplDias = {};
+    intake.forEach(item => {
+        const cumpl = item['Compliance date'] ? new Date(item['Compliance date']) : null;
+        const dex = item['Fecha_Sol_Oficio'] ? new Date(item['Fecha_Sol_Oficio']) : null;
+        if (cumpl && dex && !isNaN(cumpl) && !isNaN(dex)) {
+            tramiteDexCumplDias[item.id] = Math.max(0, Math.floor((cumpl - dex) / 86400000));
+        } else {
+            tramiteDexCumplDias[item.id] = 0;
+        }
+    });
 
     // ── Días en estados por trámite (Estados_tramites: fecha_hora → fecha_hora_fin) ──
     const estadosDiasAgg = buildTramiteEstadosDiasMap(dashboardData.estadosTramites || []);
@@ -1542,7 +1553,7 @@ function renderProductividadPage() {
         });
     }));
 
-    // ── Gráfico 1: Tiempo total promedio por tipo (finalizados) = DEX + fases ──
+    // ── Gráfico 1: Tiempo promedio por tipo (finalizados) = Fecha_Sol_Oficio → Compliance date ──
     (function renderProdFinalizadosTipoChart() {
         const ctx = document.getElementById('prodFinalizadosTipoChart');
         if (!ctx || typeof Chart === 'undefined') return;
@@ -1553,27 +1564,19 @@ function renderProductividadPage() {
             const tipo = extractTipo(item.Fase_del_Tramite);
             if (!tipo) return;
             if (tramiteEstadoProd[item.id] !== 'finalizado') return;
-            if (!agg[tipo]) agg[tipo] = { n: 0, sumFases: 0, sumDex: 0, sumEstados: 0 };
+            if (!agg[tipo]) agg[tipo] = { n: 0, sumDexCumpl: 0 };
             agg[tipo].n++;
-            agg[tipo].sumFases += (tramiteDias[item.id] || 0);
-            agg[tipo].sumDex += (tramiteDexDias[item.id] || 0);
-            agg[tipo].sumEstados += (tramiteEstadosDias[item.id] || 0);
+            agg[tipo].sumDexCumpl += (tramiteDexCumplDias[item.id] || 0);
         });
 
         const rows = Object.entries(agg)
-            .map(([code, { n, sumFases, sumDex, sumEstados }]) => {
-                const avgDex = n > 0 ? sumDex / n : 0;
-                const avgFases = n > 0 ? sumFases / n : 0;
-                const avgEstados = n > 0 ? sumEstados / n : 0;
-                const avgTotal = Math.round(avgDex + avgFases + avgEstados);
+            .map(([code, { n, sumDexCumpl }]) => {
+                const avgTotal = n > 0 ? (sumDexCumpl / n) : 0;
                 return {
                     code,
                     name: TYPE_NAMES[code] || code,
                     count: n,
-                    avgDex: Math.round(avgDex),
-                    avgFases: Math.round(avgFases),
-                    avgEstados: Math.round(avgEstados),
-                    avgTotal
+                    avgTotal: Math.round(avgTotal)
                 };
             })
             .sort((a, b) => b.avgTotal - a.avgTotal);
@@ -1597,7 +1600,7 @@ function renderProductividadPage() {
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { beginAtZero: true, grid: { color: '#ECEFF1' }, ticks: { precision: 0 }, title: { display: true, text: 'Días promedio (DEX + fases + estados)', color: '#5F6368', font: { size: 11 } } },
+                        x: { beginAtZero: true, grid: { color: '#ECEFF1' }, ticks: { precision: 0 }, title: { display: true, text: 'Días promedio (Fecha Solicitud Oficio → Fecha de Cumplimiento)', color: '#5F6368', font: { size: 11 } } },
                         y: { grid: { display: false } }
                     }
                 }
@@ -1617,7 +1620,7 @@ function renderProductividadPage() {
                 ];
             }
         };
-        optsFin.scales.x.title = { display: true, text: 'Días promedio por trámite (DEX + fases + estados)', color: '#5F6368', font: { size: 11 } };
+        optsFin.scales.x.title = { display: true, text: 'Días promedio por trámite (Fecha Solicitud Oficio → Fecha de Cumplimiento)', color: '#5F6368', font: { size: 11 } };
 
         prodFinalizadosTipoInst = new Chart(ctx, {
             type: 'bar',
