@@ -1272,6 +1272,18 @@ function renderRankingPage() {
     if (tbodyResp) {
         let html = '';
         let idx = 0;
+        const headerRow = `<tr class="ls-repeat-head-row">
+            <th class="ls-col-idx">#</th>
+            <th>Ámbito</th>
+            <th>Nombre</th>
+            <th class="ls-col-metric">Total</th>
+            <th class="ls-col-metric">En Proceso</th>
+            <th class="ls-col-metric">Finalizado</th>
+            <th class="ls-col-metric">Detenido</th>
+            <th class="ls-col-metric">Derivación</th>
+            <th class="ls-col-metric">Sol. Info</th>
+            <th class="ls-col-metric">Archivado</th>
+        </tr>`;
 
         // Construir buckets por tipo → email
         const respByTipo = {};
@@ -1297,6 +1309,7 @@ function renderRankingPage() {
             const tipoLabel = TYPE_NAMES[tipoKey] || tipoKey;
             const tipoColor = TYPE_COLORS[tipoKey] || '#607D8B';
             html += `<tr class="ls-tipo-group-row"><td colspan="10"><span class="ls-type-dot" style="background:${tipoColor}"></span>${escapeHtml(tipoLabel)}</td></tr>`;
+            html += headerRow;
 
             const respsDelTipo = Object.entries(respByTipo[tipoKey])
                 .sort((a, b) => b[1].total - a[1].total);
@@ -1331,6 +1344,7 @@ function renderRankingPage() {
         const sinTipoEntries = Object.entries(sinTipo).sort((a, b) => b[1].total - a[1].total);
         if (sinTipoEntries.length > 0) {
             html += `<tr class="ls-subsection-row"><td colspan="10">Sin tipo de trámite identificado</td></tr>`;
+            html += headerRow;
             sinTipoEntries.forEach(([resp, stats]) => {
                 const name = getUserName(resp);
                 const code = resp === 'Sin asignar' ? '—' : (resp.split('@')[0] || resp);
