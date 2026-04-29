@@ -2402,7 +2402,8 @@ body {
 }
 
 /* Fila de encabezados repetida en cada sección (pegada bajo la fila de sección) */
-.ls-repeat-head-row th {
+.ls-repeat-head-row th,
+.ls-repeat-head-row td {
     background: #eef2f7;
     color: #1a335d;
     font-weight: 600;
@@ -2414,7 +2415,7 @@ body {
     border-bottom: 1px solid #dadce0;
     position: sticky;
     top: 72px;
-    z-index: 1;
+    z-index: 4;
     box-shadow: 0 1px 0 #dadce0;
 }
 
