@@ -1613,9 +1613,6 @@ function renderProductividadPage() {
                 const r = rows[c.dataIndex];
                 return [
                     ` Tiempo total promedio: ${r.avgTotal.toLocaleString()} días`,
-                    `    · DEX: ${r.avgDex.toLocaleString()} días`,
-                    `    · Fases: ${r.avgFases.toLocaleString()} días`,
-                    `    · Estados: ${r.avgEstados.toLocaleString()} días`,
                     ` Trámites finalizados (cant.): ${r.count.toLocaleString()}`
                 ];
             }
