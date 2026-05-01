@@ -6,3 +6,4 @@ data_tiempos.json
 
 # Local Netlify folder
 .netlify
+.vercel
